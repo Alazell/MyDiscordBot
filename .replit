@@ -4,7 +4,7 @@ modules = ["python-base-3.13"]
 runButton = "Discord Bot"
 
 [[workflows.workflow]]
-name = "Discord Bot"
+name = "Release"
 author = "agent"
 
 [[workflows.workflow.tasks]]
@@ -16,3 +16,5 @@ outputType = "console"
 
 [agent]
 stack = "PYTHON"
+
+[nix]

@@ -2,11 +2,13 @@ import os
 import sys # новое
 import importlib # новое
 import time # новое
+from pathlib import Path # новое
 
 import discord
 from discord import app_commands # новое
 
 TOKEN = os.getenv("DISCORD_TOKEN")
+
 
 if not TOKEN:
     raise RuntimeError(
@@ -18,6 +20,9 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client) # новое
 
+#####################################################################
+TEST_GUILD_ID = 1429745578199351348
+TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
 #####################################################################
 
 # Новое (рукоделие): команда /ping - проверка работоспособности
@@ -39,54 +44,74 @@ async def ping(interaction: discord.Interaction):
     websocket_latency = round(client.latency * 1000)  # пинг WebSocket
 
     # Обновляем сообщение с результатами
-    await interaction.follow_up.send(
+    await interaction.followup.send(
         f"🔄 Бот ответил за {response_time} мс\n"
         f"📶 WebSocket задержка: {websocket_latency} мс"
     )
 
 # НОВОЕ: команда /reload — перезагружает все модули без рестарта бота
-@tree.command(name="reload", description="Перезагрузить все модули бота")
+`@tree.command`(name="reload", description="Перезагрузить все модули бота")
 async def reload_modules(interaction: discord.Interaction) -> None:
-    # Проверка: только владелец бота может использовать
-    ALLOWED_IDS = [626052608074711040]
-    if interaction.user.id not in ALLOWED_IDS:
-        await interaction.response.send_message("Недостаточно прав. Это команда только для <@626052608074711040> (а ты думал?)", ephemeral=True)
+    allowed_ids = (626052608074711040,)
+
+    if interaction.user.id not in allowed_ids:
+        await interaction.response.send_message(
+            "Недостаточно прав.",
+            ephemeral=True,
+        )
         return
 
-    reloaded = []
-    errors = []
+    await interaction.response.defer(ephemeral=True)
 
-    # Перебираем все загруженные модули
-    for name in list(sys.modules.keys()):
-        # Пропускаем встроенные и сам main.py
-        if name.startswith("_") or name in ("main", "discord", "os", "sys", "importlib"):
+    project_dir = Path(__file__).resolve().parent
+    reloaded: list[str] = []
+    errors: list[str] = []
+
+    for name, module in list(sys.modules.items()):
+        if name in {"__main__", "main"} or module is None:
             continue
-        # Пропускаем подмодули discord
-        if name.startswith("discord"):
+
+        module_file = getattr(module, "__file__", None)
+        if module_file is None:
             continue
 
         try:
-            module = sys.modules[name]
-            # Перезагружаем только то, что реально загружено из файлов проекта
-            if hasattr(module, "__file__") and module.__file__ is not None:
-                importlib.reload(module)
-                reloaded.append(name)
-        except Exception as e:
-            errors.append(f"{name}: {e}")
+            module_path = Path(module_file).resolve()
+        except OSError as error:
+            errors.append(f"{name}: не удалось определить путь: {error}")
+            continue
 
-    # Пересинхронизируем команды после перезагрузки
+        # Не перезагружать discord.py, aiohttp и другие зависимости.
+        if not module_path.is_relative_to(project_dir):
+            continue
+
+        try:
+            importlib.reload(module)
+            reloaded.append(name)
+        except Exception as error:
+            errors.append(f"{name}: {error}")
+
     try:
         await tree.sync()
-    except Exception as e:
-        errors.append(f"sync: {e}")
+    except Exception as error:
+        errors.append(f"sync: {error}")
 
-    msg = f"Перезагружено модулей: {len(reloaded)}"
+    lines = [f"Перезагружено модулей: {len(reloaded)}"]
     if reloaded:
-        msg += f"\n› {', '.join(reloaded)}"
+        lines.append("Перезагружены:\n" + "\n".join(f"• {name}" for name in reloaded))
     if errors:
-        msg += f"\nОшибки:\n› " + "\n› ".join(errors)
+        lines.append("Ошибки:\n" + "\n".join(f"• {error}" for error in errors))
 
-    await interaction.response.send_message(msg, ephemeral=True)
+    for message in lines:
+        while message:
+            chunk = message[:2000]
+            split_at = chunk.rfind("\n")
+
+            if len(message) > 2000 and split_at > 0:
+                chunk = message[:split_at]
+
+            await interaction.followup.send(chunk, ephemeral=True)
+            message = message[len(chunk):].lstrip("\n")
 
 #####################################################################
 
@@ -102,11 +127,11 @@ async def on_ready() -> None:
 
     # НОВОЕ: синхронизируем slash-команды при старте
     try:
-        await tree.sync()
-        print("Slash-команды синхронизированы")
-        print(tree.get_commands())
-    except Exception as e:
-        print(f"Ошибка синхронизации команд: {e}")
+        synced = await tree.sync()
+        print(f"Синхронизировано команд: {len(synced)}")
+        print([(command.name, command.id) for command in synced])
+    except Exception as error:
+        print(f"Ошибка синхронизации команд: {error}")
     #
 
     print(f"Discord-бот запущен как {client.user}")
