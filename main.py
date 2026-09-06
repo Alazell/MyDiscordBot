@@ -3,7 +3,7 @@ import sys # новое
 import importlib # новое
 import time # новое
 from pathlib import Path # новое
-from verification import DebugGroup, VerificationView
+from verification import ApplicationReviewView, DebugGroup, VerificationView
 
 import discord
 from discord import app_commands # новое
@@ -20,6 +20,7 @@ intents = discord.Intents.all()
 intents.message_content = True
 client = discord.Client(intents=intents)
 client.add_view(VerificationView())
+client.add_view(ApplicationReviewView())
 tree = app_commands.CommandTree(client) # новое
 tree.add_command(DebugGroup())
 
