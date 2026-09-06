@@ -6,7 +6,7 @@ from discord.ui.button import Button, button
 
 # Временная команда для отправки эмбеда
 @app_commands.command(name="embedadd", description="Временная команда для отправки сообщения верификации")
-async def send_verification_embed(self, interaction: discord.Interaction):
+async def send_verification_embed(interaction: discord.Interaction):
     # Создаем эмбед
     embed = discord.Embed(
         title="Наш сервер - это прекрасное место чтобы расслабиться в компании друзей вечерком! 🍻 *дзынь*",
@@ -34,7 +34,7 @@ async def send_verification_embed(self, interaction: discord.Interaction):
     )
 
 # Не забудь добавить эту команду в группу команд
-class VerificationCog(discord.app_commands.CommandGroup):
+class VerificationCog(discord.app_commands.Group):
     """Группа команд для верификации пользователей"""
 
     def __init__(self):

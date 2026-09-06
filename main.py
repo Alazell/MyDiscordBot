@@ -3,6 +3,7 @@ import sys # новое
 import importlib # новое
 import time # новое
 from pathlib import Path # новое
+from verification import VerificationCog
 
 import discord
 from discord import app_commands # новое
@@ -19,6 +20,7 @@ intents = discord.Intents.all()
 intents.message_content = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client) # новое
+tree.add_command(VerificationCog())
 
 #####################################################################
 TEST_GUILD_ID = 1429745578199351348
@@ -50,7 +52,7 @@ async def ping(interaction: discord.Interaction):
     )
 
 # НОВОЕ: команда /reload — перезагружает все модули без рестарта бота
-`@tree.command`(name="reload", description="Перезагрузить все модули бота")
+@tree.command(name="reload", description="Перезагрузить все модули бота")
 async def reload_modules(interaction: discord.Interaction) -> None:
     allowed_ids = (626052608074711040,)
 
@@ -64,6 +66,7 @@ async def reload_modules(interaction: discord.Interaction) -> None:
     await interaction.response.defer(ephemeral=True)
 
     project_dir = Path(__file__).resolve().parent
+    dependency_dir = project_dir / ".pythonlibs"
     reloaded: list[str] = []
     errors: list[str] = []
 
@@ -82,7 +85,11 @@ async def reload_modules(interaction: discord.Interaction) -> None:
             continue
 
         # Не перезагружать discord.py, aiohttp и другие зависимости.
-        if not module_path.is_relative_to(project_dir):
+        if (
+            not module_path.is_relative_to(project_dir)
+            or module_path.is_relative_to(dependency_dir)
+            or "site-packages" in module_path.parts
+        ):
             continue
 
         try:

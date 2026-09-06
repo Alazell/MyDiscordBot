@@ -26,7 +26,7 @@
 
 1. Создайте секрет `DISCORD_TOKEN` в Replit Secrets.
 2. Добавьте Discord-бота на нужный сервер.
-3. Запустите workflow **Discord Bot**.
+3. Запустите workflow **Release**.
 
 Проект запускается командой:
 
