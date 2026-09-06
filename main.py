@@ -134,6 +134,11 @@ async def on_ready() -> None:
 
     # НОВОЕ: синхронизируем slash-команды при старте
     try:
+        # Удаляем старые guild-команды, оставшиеся от предыдущей регистрации.
+        # Актуальные команды публикуются глобально через следующий sync().
+        tree.clear_commands(guild=TEST_GUILD)
+        await tree.sync(guild=TEST_GUILD)
+
         synced = await tree.sync()
         print(f"Синхронизировано команд: {len(synced)}")
         print([(command.name, command.id) for command in synced])
