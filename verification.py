@@ -7,6 +7,9 @@ from discord import app_commands
 
 
 APPLICATION_CATEGORY_ID = 1532132723802505286
+MINOR_ROLE_ID = 1542824708855177236
+ADULT_ROLE_ID = 1542824950472253562
+DEBUG_OWNER_ID = 626052608074711040
 ANSWER_STORE = Path(__file__).with_name(".verification_answers.json")
 APPLICATION_TOPIC_PREFIX = "verification_application:"
 
@@ -36,30 +39,63 @@ def _channel_name(member: discord.Member) -> str:
 
 
 class VerificationModal(discord.ui.Modal, title="Заявка на верификацию"):
-    question_1 = discord.ui.TextInput(
-        label="1. Как вы относитесь к фурри? :p",
-        placeholder="#нормально. #хорошо. #слишком-стесняюсь-чтобы-ответить-развёрнуто",
-        style=discord.TextStyle.paragraph,
-        custom_id="verification:attitude",
-        max_length=1000,
+    question_1 = discord.ui.Label(
+        text="1. Как вы относитесь к фурри? :p",
+        component=discord.ui.TextInput(
+            placeholder="#нормально. #хорошо. #слишком-стесняюсь-чтобы-ответить-развёрнуто",
+            style=discord.TextStyle.paragraph,
+            custom_id="verification:attitude",
+            min_length=5,
+            max_length=750,
+        ),
     )
-    question_2 = discord.ui.TextInput(
-        label="2. Сколько вам лет?",
-        placeholder="14 — указывайте свой настоящий возраст",
-        custom_id="verification:age",
-        max_length=3,
+    question_2 = discord.ui.Label(
+        text="2. Сколько вам лет?",
+        description="Называйте свой настоящий возраст. Плейсхолдер '14' это не подсказка.",
+        component=discord.ui.TextInput(
+            placeholder="14",
+            custom_id="verification:age",
+            min_length=2,
+            max_length=2,
+        ),
     )
-    question_3 = discord.ui.TextInput(
-        label="3. Каким методом вы присоединились к серверу?",
-        placeholder="1 — мониторинг; 2 — приглашение; 3 — партнёрство",
-        custom_id="verification:source",
-        max_length=1,
+    question_3 = discord.ui.Label(
+        text="Каким методом вы присоединились к серверу?",
+        description="Вся информация проверяется.",
+        component=discord.ui.Select(
+            custom_id="verification:source",
+            placeholder="Выберите способ присоединения",
+            options=[
+                discord.SelectOption(
+                    label="Бот мониторинга",
+                    value="monitoring",
+                    description="сайт со списком серверов",
+                ),
+                discord.SelectOption(
+                    label="Прямое приглашение",
+                    value="direct",
+                    description="от друга или ещё кого-то",
+                ),
+                discord.SelectOption(
+                    label="Партнёр-Пиар",
+                    value="partnership",
+                    description="ссылка партнёрства с другим сервером",
+                ),
+            ],
+            min_values=1,
+            max_values=1,
+            required=True,
+        ),
     )
-    question_4 = discord.ui.TextInput(
-        label="Любимое пиво? :3",
-        placeholder="¯\\_(ツ)_/¯",
-        custom_id="verification:beer",
-        max_length=200,
+    question_4 = discord.ui.Label(
+        text="Любимое пиво? :3",
+        component=discord.ui.TextInput(
+            placeholder="¯\\_(ツ)_/¯",
+            custom_id="verification:beer",
+            required=False,
+            min_length=0,
+            max_length=350,
+        ),
     )
 
     def __init__(self, user_id: int):
@@ -68,13 +104,17 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
 
         previous_answers = _load_previous_answers().get(str(user_id), {})
         for field, key in (
-            (self.question_1, "attitude"),
-            (self.question_2, "age"),
-            (self.question_3, "source"),
-            (self.question_4, "beer"),
+            (self.question_1.component, "attitude"),
+            (self.question_2.component, "age"),
+            (self.question_4.component, "beer"),
         ):
             if previous_answers.get(key):
                 field.default = previous_answers[key]
+
+        previous_source = previous_answers.get("source")
+        if previous_source:
+            for option in self.question_3.component.options:
+                option.default = option.value == previous_source
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
@@ -86,23 +126,26 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             )
             return
 
-        age_text = self.question_2.value.strip()
+        attitude = self.question_1.component.value.strip()
+        age_text = self.question_2.component.value.strip()
+        beer = self.question_4.component.value.strip()
         if not age_text.isdigit() or not 1 <= int(age_text) <= 120:
             await interaction.followup.send(
-                "Укажите настоящий возраст числом от 1 до 120.",
+                "Укажите настоящий возраст двумя цифрами.",
                 ephemeral=True,
             )
             return
 
-        source_key = self.question_3.value.strip()
+        source_values = self.question_3.component.values
+        source_key = source_values[0] if source_values else ""
         source_names = {
-            "1": "Бот мониторинга — сайт со списком серверов",
-            "2": "Прямое приглашение — от друга или другого пользователя",
-            "3": "Партнёр-Пиар — ссылка партнёрства с другим сервером",
+            "monitoring": "Бот мониторинга — сайт со списком серверов",
+            "direct": "Прямое приглашение — от друга или другого пользователя",
+            "partnership": "Партнёр-Пиар — ссылка партнёрства с другим сервером",
         }
         if source_key not in source_names:
             await interaction.followup.send(
-                "В третьем вопросе укажите только 1, 2 или 3.",
+                "Выберите способ присоединения к серверу.",
                 ephemeral=True,
             )
             return
@@ -130,6 +173,39 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 ephemeral=True,
             )
             return
+
+        age = int(age_text)
+        age_role_id = (
+            MINOR_ROLE_ID
+            if age < 18
+            else ADULT_ROLE_ID
+            if age > 18
+            else None
+        )
+        age_role = (
+            interaction.guild.get_role(age_role_id)
+            if age_role_id is not None
+            else None
+        )
+        if age_role_id is not None and age_role is None:
+            await interaction.followup.send(
+                "Роль для указанного возраста не найдена. Сообщите об этом администрации.",
+                ephemeral=True,
+            )
+            return
+
+        if age_role is not None:
+            try:
+                await interaction.user.add_roles(
+                    age_role,
+                    reason="Возраст указан в заявке на верификацию",
+                )
+            except discord.Forbidden:
+                await interaction.followup.send(
+                    "Бот не может выдать возрастную роль. Проверьте права и иерархию ролей.",
+                    ephemeral=True,
+                )
+                return
 
         overwrites = {
             interaction.guild.default_role: discord.PermissionOverwrite(
@@ -173,10 +249,10 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             return
 
         answers = {
-            "attitude": self.question_1.value.strip(),
+            "attitude": attitude,
             "age": age_text,
             "source": source_key,
-            "beer": self.question_4.value.strip(),
+            "beer": beer,
         }
         previous_answers = _load_previous_answers()
         previous_answers[str(self.user_id)] = answers
@@ -220,7 +296,10 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
         )
         admin_embed.add_field(
             name="Возраст",
-            value=f"{answers['age']}\n*Роль возраста: будет настроена отдельно*",
+            value=(
+                f"{answers['age']}\n"
+                f"*Роль возраста: {age_role.mention if age_role else 'не назначается'}*"
+            ),
             inline=True,
         )
         admin_embed.add_field(
@@ -255,9 +334,19 @@ class VerificationView(discord.ui.View):
             VerificationModal(interaction.user.id)
         )
 
-# Временная команда для отправки эмбеда
-@app_commands.command(name="embedadd", description="Временная команда для отправки сообщения верификации")
+# Команда отладки для отправки embed-сообщения верификации
+@app_commands.command(
+    name="verification_embed",
+    description="Отправить embed для подачи заявки на верификацию",
+)
 async def send_verification_embed(interaction: discord.Interaction):
+    if interaction.user.id != DEBUG_OWNER_ID:
+        await interaction.response.send_message(
+            "Эта debug-команда доступна только владельцу проекта.",
+            ephemeral=True,
+        )
+        return
+
     # Создаем эмбед
     embed = discord.Embed(
         title="Наш сервер - это прекрасное место чтобы расслабиться в компании друзей вечерком! 🍻 *дзынь*",
@@ -275,16 +364,13 @@ async def send_verification_embed(interaction: discord.Interaction):
         ephemeral=False
     )
 
-# Не забудь добавить эту команду в группу команд
-class VerificationCog(discord.app_commands.Group):
-    """Группа команд для верификации пользователей"""
+class DebugGroup(discord.app_commands.Group):
+    """Отладочные команды проекта"""
 
     def __init__(self):
-        super().__init__(name="верификация", description="Команды для системы верификации")
+        super().__init__(name="debug", description="Отладочные команды проекта")
         # Добавляем новые команды сюда
         self.add_command(send_verification_embed)
-
-    # Остальные команды...
 
 # Временная пометка в коде
 # 🏗️ ВРЕМЕННОЕ РЕШЕНИЕ: команда для тестирования эмбеда верификации

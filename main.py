@@ -3,7 +3,7 @@ import sys # новое
 import importlib # новое
 import time # новое
 from pathlib import Path # новое
-from verification import VerificationCog, VerificationView
+from verification import DebugGroup, VerificationView
 
 import discord
 from discord import app_commands # новое
@@ -21,7 +21,7 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 client.add_view(VerificationView())
 tree = app_commands.CommandTree(client) # новое
-tree.add_command(VerificationCog())
+tree.add_command(DebugGroup())
 
 #####################################################################
 TEST_GUILD_ID = 1429745578199351348
