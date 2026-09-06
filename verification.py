@@ -19,6 +19,7 @@ DEBUG_OWNER_ID = 626052608074711040
 ANSWER_STORE = Path(__file__).with_name(".verification_answers.json")
 APPLICATION_TOPIC_PREFIX = "verification_application:"
 UNKNOWN_INVITE_VALUE = "Не определено"
+INVITE_SNAPSHOTS: dict[int, dict[str, int]] = {}
 
 
 def _load_previous_answers() -> dict[str, dict[str, str]]:
@@ -36,6 +37,65 @@ def _save_previous_answers(answers: dict[str, dict[str, str]]) -> None:
     with temporary_store.open("w", encoding="utf-8") as file:
         json.dump(answers, file, ensure_ascii=False, indent=2)
     temporary_store.replace(ANSWER_STORE)
+
+
+async def refresh_invite_snapshot(guild: discord.Guild) -> None:
+    try:
+        invites = await guild.invites()
+    except (discord.Forbidden, discord.HTTPException):
+        return
+
+    INVITE_SNAPSHOTS[guild.id] = {
+        invite.code: invite.uses or 0
+        for invite in invites
+    }
+
+
+async def record_member_invite(member: discord.Member) -> None:
+    try:
+        invites = await member.guild.invites()
+    except (discord.Forbidden, discord.HTTPException):
+        return
+
+    previous_uses = INVITE_SNAPSHOTS.get(member.guild.id, {})
+    used_invites = [
+        invite
+        for invite in invites
+        if (invite.uses or 0) > previous_uses.get(invite.code, 0)
+    ]
+    INVITE_SNAPSHOTS[member.guild.id] = {
+        invite.code: invite.uses or 0
+        for invite in invites
+    }
+
+    if not used_invites:
+        return
+
+    invite = max(
+        used_invites,
+        key=lambda item: (item.uses or 0) - previous_uses.get(item.code, 0),
+    )
+    inviter = invite.inviter.mention if invite.inviter else UNKNOWN_INVITE_VALUE
+    expires_at = (
+        invite.expires_at.strftime("%Y-%m-%d %H:%M UTC")
+        if invite.expires_at
+        else "не истекает"
+    )
+    details = {
+        "invite_link": f"https://discord.gg/{invite.code}",
+        "inviter": inviter,
+        "invite_properties": (
+            f"использований: {invite.uses or 0}\n"
+            f"истекает: {expires_at}"
+        ),
+    }
+
+    answers = _load_previous_answers()
+    answers.setdefault(str(member.id), {}).update(details)
+    try:
+        _save_previous_answers(answers)
+    except OSError:
+        pass
 
 
 def _channel_name(member: discord.Member) -> str:
