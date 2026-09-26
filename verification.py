@@ -3,19 +3,23 @@ import json
 import re
 from html import escape
 from pathlib import Path
-
+import os
 import discord
 from discord import app_commands
 
+def _env_id(name: str) -> int | None:
+    value = os.getenv(name)
+    return int(value) if value and value.isdigit() else None
 
-APPLICATION_CATEGORY_ID = os.getenv("APPLICATION_CATEGORY_ID")
-MINOR_ROLE_ID = os.getenv("MINOR_ROLE_ID")
-ADULT_ROLE_ID = os.getenv("ADULT_ROLE_ID")
-REVIEW_ROLE_ID = os.getenv("REVIEW_ROLE_ID")
-VERIFIED_ROLE_ID = os.getenv("VERIFIED_ROLE_ID")
-PENDING_ROLE_ID = os.getenv("PENDING_ROLE_ID")
-VERIFICATION_LOG_CHANNEL_ID = os.getenv("VERIFICATION_LOG_CHANNEL_ID")
-DEBUG_OWNER_ID = os.getenv("DEBUG_OWNER_ID")
+
+APPLICATION_CATEGORY_ID = _env_id("APPLICATION_CATEGORY_ID")
+MINOR_ROLE_ID = _env_id("MINOR_ROLE_ID")
+ADULT_ROLE_ID = _env_id("ADULT_ROLE_ID")
+REVIEW_ROLE_ID = _env_id("REVIEW_ROLE_ID")
+VERIFIED_ROLE_ID = _env_id("VERIFIED_ROLE_ID")
+PENDING_ROLE_ID = _env_id("PENDING_ROLE_ID")
+VERIFICATION_LOG_CHANNEL_ID = _env_id("VERIFICATION_LOG_CHANNEL_ID")
+DEBUG_OWNER_ID = _env_id("DEBUG_OWNER_ID")
 ANSWER_STORE = Path(__file__).with_name(".verification_answers.json")
 APPLICATION_TOPIC_PREFIX = "verification_application:"
 UNKNOWN_INVITE_VALUE = "Не определено"
@@ -564,7 +568,7 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
         label="Причина",
         style=discord.TextStyle.paragraph,
         required=False,
-        max_length=1024,
+        max_length=950,
         custom_id="verification:closure_reason",
     )
 
@@ -608,7 +612,7 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
             )
             return
 
-        if self.status == "Принято":
+        if self.status == "ПРИНЯТО ✅":
             if applicant is None:
                 await interaction.followup.send(
                     "Автор заявки больше не находится на сервере. Заявка не закрыта.",

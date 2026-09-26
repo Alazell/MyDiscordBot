@@ -21,7 +21,7 @@ stack = "PYTHON"
 
 [deployment]
 deploymentTarget = "cloudrun"
-run = ["sh", "-c", "/nix/store/qzc04a3npl70cyyy6flnnrb2ig3kayxm-python3-3.13.11/bin/python3 $file"]
+run = ["python3", "main.py"]
 
 [userenv]
 
@@ -34,3 +34,7 @@ VERIFIED_ROLE_ID = "1553440584142688316"
 PENDING_ROLE_ID = "1553440617261047958"
 VERIFICATION_LOG_CHANNEL_ID = "1553440987739852880"
 DEBUG_OWNER_ID = "626052608074711040"
+
+[[ports]]
+localPort = 80
+externalPort = 80
