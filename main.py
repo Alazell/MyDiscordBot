@@ -25,7 +25,7 @@ tree = app_commands.CommandTree(client) # новое
 tree.add_command(DebugGroup())
 
 #####################################################################
-TEST_GUILD_ID = 1429745578199351348
+TEST_GUILD_ID = 1017754395968012308
 TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
 #####################################################################
 

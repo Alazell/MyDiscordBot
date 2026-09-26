@@ -8,14 +8,14 @@ import discord
 from discord import app_commands
 
 
-APPLICATION_CATEGORY_ID = 1532132723802505286
-MINOR_ROLE_ID = 1542824708855177236
-ADULT_ROLE_ID = 1542824950472253562
-REVIEW_ROLE_ID = 1533419573301481543
-VERIFIED_ROLE_ID = 1426079742330436668
-PENDING_ROLE_ID = 1532134019280535688
-VERIFICATION_LOG_CHANNEL_ID = 1452703487350542446
-DEBUG_OWNER_ID = 626052608074711040
+APPLICATION_CATEGORY_ID = os.getenv("APPLICATION_CATEGORY_ID")
+MINOR_ROLE_ID = os.getenv("MINOR_ROLE_ID")
+ADULT_ROLE_ID = os.getenv("ADULT_ROLE_ID")
+REVIEW_ROLE_ID = os.getenv("REVIEW_ROLE_ID")
+VERIFIED_ROLE_ID = os.getenv("VERIFIED_ROLE_ID")
+PENDING_ROLE_ID = os.getenv("PENDING_ROLE_ID")
+VERIFICATION_LOG_CHANNEL_ID = os.getenv("VERIFICATION_LOG_CHANNEL_ID")
+DEBUG_OWNER_ID = os.getenv("DEBUG_OWNER_ID")
 ANSWER_STORE = Path(__file__).with_name(".verification_answers.json")
 APPLICATION_TOPIC_PREFIX = "verification_application:"
 UNKNOWN_INVITE_VALUE = "Не определено"
@@ -365,13 +365,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             return
 
         age = int(age_text)
-        age_role_id = (
-            MINOR_ROLE_ID
-            if age < 18
-            else ADULT_ROLE_ID
-            if age > 18
-            else None
-        )
+        age_role_id = MINOR_ROLE_ID if age < 18 else ADULT_ROLE_ID
         age_role = (
             interaction.guild.get_role(age_role_id)
             if age_role_id is not None
@@ -719,7 +713,7 @@ class ApplicationReviewView(discord.ui.View):
         if await self._deny_without_role(interaction):
             return
         await interaction.response.send_modal(
-            ClosureReasonModal(status="Принято")
+            ClosureReasonModal(status="ПРИНЯТО ✅")
         )
 
     @discord.ui.button(
@@ -735,7 +729,7 @@ class ApplicationReviewView(discord.ui.View):
         if await self._deny_without_role(interaction):
             return
         await interaction.response.send_modal(
-            ClosureReasonModal(status="Отклонено")
+            ClosureReasonModal(status="ОТКЛОНЕНО ❌")
         )
 
     @discord.ui.button(
@@ -829,6 +823,3 @@ class DebugGroup(discord.app_commands.Group):
         # Добавляем новые команды сюда
         self.add_command(send_verification_embed)
 
-# Временная пометка в коде
-# 🏗️ ВРЕМЕННОЕ РЕШЕНИЕ: команда для тестирования эмбеда верификации
-# Будет заменена на постоянную реализацию после доработки системы
