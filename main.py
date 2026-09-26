@@ -3,7 +3,8 @@ import sys # новое
 import importlib # новое
 import time # новое
 from pathlib import Path # новое
-from verification import VerificationCog
+from verification import ApplicationReviewView, DebugGroup, VerificationView
+from background import keep_alive
 
 import discord
 from discord import app_commands # новое
@@ -20,10 +21,15 @@ intents = discord.Intents.all()
 intents.message_content = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client) # новое
-tree.add_command(VerificationCog())
+tree.add_command(DebugGroup())
+
+async def _setup_hook() -> None:
+    client.add_view(VerificationView())
+    client.add_view(ApplicationReviewView())
+client.setup_hook = _setup_hook
 
 #####################################################################
-TEST_GUILD_ID = 1429745578199351348
+TEST_GUILD_ID = 1017754395968012308
 TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
 #####################################################################
 
@@ -150,5 +156,6 @@ async def on_ready() -> None:
     print('Статус профиля: "Я существую"')
 
 
+keep_alive()
 if __name__ == "__main__":
     client.run(TOKEN)
