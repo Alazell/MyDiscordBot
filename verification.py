@@ -23,6 +23,7 @@ INVITE_SNAPSHOTS: dict[int, dict[str, int]] = {}
 
 
 def _load_previous_answers() -> dict[str, dict[str, str]]:
+    """Прочитать сохранённые ответы или вернуть пустой словарь при ошибке чтения."""
     try:
         with ANSWER_STORE.open("r", encoding="utf-8") as file:
             data = json.load(file)
@@ -33,6 +34,7 @@ def _load_previous_answers() -> dict[str, dict[str, str]]:
 
 
 def _save_previous_answers(answers: dict[str, dict[str, str]]) -> None:
+    """Сохранить ответы в JSON, заменив хранилище временным файлом."""
     temporary_store = ANSWER_STORE.with_suffix(".tmp")
     with temporary_store.open("w", encoding="utf-8") as file:
         json.dump(answers, file, ensure_ascii=False, indent=2)
@@ -40,6 +42,7 @@ def _save_previous_answers(answers: dict[str, dict[str, str]]) -> None:
 
 
 async def refresh_invite_snapshot(guild: discord.Guild) -> None:
+    """Обновить снимок счётчиков приглашений, если Discord разрешает их чтение."""
     try:
         invites = await guild.invites()
     except (discord.Forbidden, discord.HTTPException):
@@ -52,6 +55,7 @@ async def refresh_invite_snapshot(guild: discord.Guild) -> None:
 
 
 async def record_member_invite(member: discord.Member) -> None:
+    """Определить вероятное приглашение по росту счётчика и сохранить его данные."""
     try:
         invites = await member.guild.invites()
     except (discord.Forbidden, discord.HTTPException):
@@ -99,6 +103,7 @@ async def record_member_invite(member: discord.Member) -> None:
 
 
 def _channel_name(member: discord.Member) -> str:
+    """Сформировать имя канала заявки из имени участника длиной до 100 символов."""
     display_name = member.nick or member.name
     safe_name = re.sub(r"[^\w-]+", "-", display_name, flags=re.UNICODE)
     safe_name = safe_name.strip("-_").lower() or str(member.id)
@@ -106,6 +111,7 @@ def _channel_name(member: discord.Member) -> str:
 
 
 def _applicant_id(channel: discord.TextChannel) -> int | None:
+    """Извлечь ID заявителя из темы канала или вернуть None при неверном формате."""
     topic = channel.topic or ""
     if not topic.startswith(APPLICATION_TOPIC_PREFIX):
         return None
@@ -117,6 +123,7 @@ def _applicant_id(channel: discord.TextChannel) -> int | None:
 
 
 def _has_review_role(interaction: discord.Interaction) -> bool:
+    """Проверить наличие роли модератора верификации у автора взаимодействия."""
     return isinstance(interaction.user, discord.Member) and any(
         role.id == REVIEW_ROLE_ID for role in interaction.user.roles
     )
@@ -128,6 +135,7 @@ async def _set_conversation_access(
     *,
     enabled: bool,
 ) -> None:
+    """Настроить переписку; при отключении удалить персональные права заявителя."""
     review_role = channel.guild.get_role(REVIEW_ROLE_ID)
     if review_role is None:
         raise RuntimeError(f"Роль модераторов не найдена: {REVIEW_ROLE_ID}")
@@ -154,6 +162,7 @@ async def _lock_application(
     channel: discord.TextChannel,
     applicant: discord.Member | None,
 ) -> None:
+    """Запретить сообщения роли модераторов и удалить персональные права заявителя."""
     review_role = channel.guild.get_role(REVIEW_ROLE_ID)
     if review_role is not None:
         await channel.set_permissions(
@@ -167,6 +176,7 @@ async def _lock_application(
 
 
 async def _render_transcript(channel: discord.TextChannel) -> str:
+    """Вернуть HTML-транскрипт истории канала с экранированием текста."""
     messages = [
         message async for message in channel.history(limit=None, oldest_first=True)
     ]
@@ -289,6 +299,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
     )
 
     def __init__(self, user_id: int):
+        """Создать форму заявки, подставив сохранённые ответы пользователя."""
         super().__init__()
         self.user_id = user_id
 
@@ -307,6 +318,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 option.default = option.value == previous_source
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        """Проверить ответы, назначить возрастную роль и создать канал новой заявки."""
         await interaction.response.defer(ephemeral=True)
 
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
@@ -527,6 +539,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
 
 class VerificationView(discord.ui.View):
     def __init__(self):
+        """Создать постоянную панель с кнопкой подачи заявки."""
         super().__init__(timeout=None)
 
     @discord.ui.button(
@@ -540,6 +553,7 @@ class VerificationView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button,
     ) -> None:
+        """Открыть форму заявки для пользователя, нажавшего кнопку."""
         await interaction.response.send_modal(
             VerificationModal(interaction.user.id)
         )
@@ -555,10 +569,12 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
     )
 
     def __init__(self, status: str):
+        """Создать форму причины закрытия заявки с указанным статусом."""
         super().__init__()
         self.status = status
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        """Обработать закрытие заявки модератором, отправить транскрипт и удалить канал."""
         if not _has_review_role(interaction):
             await interaction.response.send_message(
                 "У вас нет доступа к обработке заявок.",
@@ -687,10 +703,12 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
 
 class ApplicationReviewView(discord.ui.View):
     def __init__(self, *, question_disabled: bool = False):
+        """Создать постоянную панель модерации с заданной доступностью кнопки вопроса."""
         super().__init__(timeout=None)
         self.question_button.disabled = question_disabled
 
     async def _deny_without_role(self, interaction: discord.Interaction) -> bool:
+        """Сообщить об отсутствии роли модератора и вернуть True при отказе."""
         if _has_review_role(interaction):
             return False
 
@@ -710,6 +728,7 @@ class ApplicationReviewView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button,
     ) -> None:
+        """Открыть модератору форму причины принятия заявки."""
         if await self._deny_without_role(interaction):
             return
         await interaction.response.send_modal(
@@ -726,6 +745,7 @@ class ApplicationReviewView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button,
     ) -> None:
+        """Открыть модератору форму причины отклонения заявки."""
         if await self._deny_without_role(interaction):
             return
         await interaction.response.send_modal(
@@ -743,6 +763,7 @@ class ApplicationReviewView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button,
     ) -> None:
+        """Открыть переписку с заявителем и отключить кнопку вопроса в сообщении."""
         if await self._deny_without_role(interaction):
             return
 
@@ -791,6 +812,7 @@ class ApplicationReviewView(discord.ui.View):
     description="Отправить embed для подачи заявки на верификацию",
 )
 async def send_verification_embed(interaction: discord.Interaction):
+    """Отправить сообщение с кнопкой верификации по запросу владельца проекта."""
     if interaction.user.id != DEBUG_OWNER_ID:
         await interaction.response.send_message(
             "Эта debug-команда доступна только владельцу проекта.",
@@ -819,6 +841,7 @@ class DebugGroup(discord.app_commands.Group):
     """Отладочные команды проекта"""
 
     def __init__(self):
+        """Создать группу debug и зарегистрировать команду сообщения верификации."""
         super().__init__(name="debug", description="Отладочные команды проекта")
         # Добавляем новые команды сюда
         self.add_command(send_verification_embed)
