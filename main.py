@@ -1,12 +1,12 @@
 import os
-import sys # новое
-import importlib # новое
-import time # новое
-from pathlib import Path # новое
+import sys
+import importlib
+import time
+from pathlib import Path
 from verification import ApplicationReviewView, DebugGroup, VerificationView
 
 import discord
-from discord import app_commands # новое
+from discord import app_commands
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 
@@ -19,7 +19,7 @@ if not TOKEN:
 intents = discord.Intents.all()
 intents.message_content = True
 client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client) # новое
+tree = app_commands.CommandTree(client)
 tree.add_command(DebugGroup())
 
 async def _setup_hook() -> None:
@@ -31,8 +31,6 @@ client.setup_hook = _setup_hook
 TEST_GUILD_ID = 1017754395968012308
 TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
 #####################################################################
-
-# Новое (рукоделие): команда /ping - проверка работоспособности
 
 # Команда ping
 @tree.command(name="ping", description="Проверить задержку бота")
@@ -55,8 +53,6 @@ async def ping(interaction: discord.Interaction):
         f"🔄 Бот ответил за {response_time} мс\n"
         f"📶 WebSocket задержка: {websocket_latency} мс"
     )
-
-# НОВОЕ: команда /reload — перезагружает все модули без рестарта бота
 @tree.command(name="reload", description="Перезагрузить все модули бота")
 async def reload_modules(interaction: discord.Interaction) -> None:
     allowed_ids = (626052608074711040,)
@@ -137,7 +133,6 @@ async def on_ready() -> None:
         activity=discord.CustomActivity(name="Проводится техническое обслуживание. Ожидайте!"),
     )
 
-    # НОВОЕ: синхронизируем slash-команды при старте
     try:
         # Удаляем старые guild-команды, оставшиеся от предыдущей регистрации.
         # Актуальные команды публикуются глобально через следующий sync().
