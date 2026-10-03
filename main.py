@@ -4,7 +4,6 @@ import importlib # новое
 import time # новое
 from pathlib import Path # новое
 from verification import ApplicationReviewView, DebugGroup, VerificationView
-from background import keep_alive
 
 import discord
 from discord import app_commands # новое
@@ -156,6 +155,5 @@ async def on_ready() -> None:
     print('Статус профиля: "Я существую"')
 
 
-keep_alive()
 if __name__ == "__main__":
     client.run(TOKEN)
