@@ -1,25 +1,15 @@
 import io
 import json
 import re
+from dotenv import load_dotenv
 from html import escape
 from pathlib import Path
 import os
 import discord
 from discord import app_commands
-
-def _env_id(name: str) -> int | None:
-    value = os.getenv(name)
-    return int(value) if value and value.isdigit() else None
+load_dotenv()
 
 
-APPLICATION_CATEGORY_ID = _env_id("APPLICATION_CATEGORY_ID")
-MINOR_ROLE_ID = _env_id("MINOR_ROLE_ID")
-ADULT_ROLE_ID = _env_id("ADULT_ROLE_ID")
-REVIEW_ROLE_ID = _env_id("REVIEW_ROLE_ID")
-VERIFIED_ROLE_ID = _env_id("VERIFIED_ROLE_ID")
-PENDING_ROLE_ID = _env_id("PENDING_ROLE_ID")
-VERIFICATION_LOG_CHANNEL_ID = _env_id("VERIFICATION_LOG_CHANNEL_ID")
-DEBUG_OWNER_ID = _env_id("DEBUG_OWNER_ID")
 ANSWER_STORE = Path(__file__).with_name(".verification_answers.json")
 APPLICATION_TOPIC_PREFIX = "verification_application:"
 UNKNOWN_INVITE_VALUE = "Не определено"
@@ -129,7 +119,7 @@ def _applicant_id(channel: discord.TextChannel) -> int | None:
 def _has_review_role(interaction: discord.Interaction) -> bool:
     """Проверить наличие роли модератора верификации у автора взаимодействия."""
     return isinstance(interaction.user, discord.Member) and any(
-        role.id == REVIEW_ROLE_ID for role in interaction.user.roles
+        role.id == os.environ['REVIEW_ROLE_ID'] for role in interaction.user.roles
     )
 
 
@@ -140,9 +130,9 @@ async def _set_conversation_access(
     enabled: bool,
 ) -> None:
     """Настроить переписку; при отключении удалить персональные права заявителя."""
-    review_role = channel.guild.get_role(REVIEW_ROLE_ID)
+    review_role = channel.guild.get_role(os.environ['REVIEW_ROLE_ID'])
     if review_role is None:
-        raise RuntimeError(f"Роль модераторов не найдена: {REVIEW_ROLE_ID}")
+        raise RuntimeError(f"Роль модераторов не найдена: {os.environ['REVIEW_ROLE_ID']}")
 
     await channel.set_permissions(
         review_role,
@@ -167,7 +157,7 @@ async def _lock_application(
     applicant: discord.Member | None,
 ) -> None:
     """Запретить сообщения роли модераторов и удалить персональные права заявителя."""
-    review_role = channel.guild.get_role(REVIEW_ROLE_ID)
+    review_role = channel.guild.get_role(os.environ['REVIEW_ROLE_ID'])
     if review_role is not None:
         await channel.set_permissions(
             review_role,
@@ -291,17 +281,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             required=True,
         ),
     )
-    question_4 = discord.ui.Label(
-        text="Любимое пиво? :3",
-        component=discord.ui.TextInput(
-            placeholder="¯\\_(ツ)_/¯",
-            custom_id="verification:beer",
-            required=False,
-            min_length=0,
-            max_length=350,
-        ),
-    )
-
     def __init__(self, user_id: int):
         """Создать форму заявки, подставив сохранённые ответы пользователя."""
         super().__init__()
@@ -311,7 +290,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
         for field, key in (
             (self.question_1.component, "attitude"),
             (self.question_2.component, "age"),
-            (self.question_4.component, "beer"),
         ):
             if previous_answers.get(key):
                 field.default = previous_answers[key]
@@ -334,7 +312,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
 
         attitude = self.question_1.component.value.strip()
         age_text = self.question_2.component.value.strip()
-        beer = self.question_4.component.value.strip()
         if not age_text.isdigit() or not 1 <= int(age_text) <= 120:
             await interaction.followup.send(
                 "Укажите настоящий возраст двумя цифрами.",
@@ -356,7 +333,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             )
             return
 
-        category = interaction.guild.get_channel(APPLICATION_CATEGORY_ID)
+        category = interaction.guild.get_channel(os.environ['APPLICATION_CATEGORY_ID'])
         if not isinstance(category, discord.CategoryChannel):
             await interaction.followup.send(
                 "Категория для заявок не найдена. Сообщите об этом администрации.",
@@ -381,7 +358,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             return
 
         age = int(age_text)
-        age_role_id = MINOR_ROLE_ID if age < 18 else ADULT_ROLE_ID
+        age_role_id = os.environ['MINOR_ROLE_ID'] if age < 18 else os.environ['ADULT_ROLE_ID']
         age_role = (
             interaction.guild.get_role(age_role_id)
             if age_role_id is not None
@@ -412,7 +389,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 view_channel=False
             ),
         }
-        review_role = interaction.guild.get_role(REVIEW_ROLE_ID)
+        review_role = interaction.guild.get_role(os.environ['REVIEW_ROLE_ID'])
         if review_role is None:
             await interaction.followup.send(
                 "Роль модераторов не найдена. Сообщите об этом администрации.",
@@ -464,7 +441,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             "attitude": attitude,
             "age": age_text,
             "source": source_key,
-            "beer": beer,
             "invite_link": UNKNOWN_INVITE_VALUE,
             "inviter": UNKNOWN_INVITE_VALUE,
             "invite_properties": UNKNOWN_INVITE_VALUE,
@@ -523,11 +499,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 f"{answers['age']}\n"
                 f"*Роль возраста: {age_role.mention if age_role else 'не назначается'}*"
             ),
-            inline=True,
-        )
-        admin_embed.add_field(
-            name="Любимое пиво",
-            value=answers["beer"] or "Не указано",
             inline=True,
         )
 
@@ -604,7 +575,7 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
             return
 
         applicant = channel.guild.get_member(applicant_id)
-        log_channel = channel.guild.get_channel(VERIFICATION_LOG_CHANNEL_ID)
+        log_channel = channel.guild.get_channel(os.environ['VERIFICATION_LOG_CHANNEL_ID'])
         if not isinstance(log_channel, discord.TextChannel):
             await interaction.followup.send(
                 "Канал журнала верификации не найден. Заявка не закрыта.",
@@ -620,8 +591,8 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
                 )
                 return
 
-            verified_role = channel.guild.get_role(VERIFIED_ROLE_ID)
-            pending_role = channel.guild.get_role(PENDING_ROLE_ID)
+            verified_role = channel.guild.get_role(os.environ['VERIFIED_ROLE_ID'])
+            pending_role = channel.guild.get_role(os.environ['PENDING_ROLE_ID'])
             if verified_role is None or pending_role is None:
                 await interaction.followup.send(
                     "Одна из ролей для принятия заявки не найдена. Заявка не закрыта.",
@@ -817,7 +788,7 @@ class ApplicationReviewView(discord.ui.View):
 )
 async def send_verification_embed(interaction: discord.Interaction):
     """Отправить сообщение с кнопкой верификации по запросу владельца проекта."""
-    if interaction.user.id != DEBUG_OWNER_ID:
+    if interaction.user.id != os.environ['DEBUG_OWNER_ID']:
         await interaction.response.send_message(
             "Эта debug-команда доступна только владельцу проекта.",
             ephemeral=True,
