@@ -8,6 +8,8 @@ from verification import ApplicationReviewView, DebugGroup, VerificationView
 import discord
 from discord import app_commands
 
+TOKEN = os.environ['DISCORD_TOKEN']
+
 if not TOKEN:
     raise RuntimeError(
         "DISCORD_TOKEN is not configured."
