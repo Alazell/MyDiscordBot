@@ -5,12 +5,11 @@ from pathlib import Path
 from verification import ApplicationReviewView, DebugGroup, VerificationView
 from dotenv import load_dotenv
 import discord
+import importlib
 from discord import app_commands
 load_dotenv()
 
-TOKEN = os.environ['DISCORD_TOKEN']
-
-if not TOKEN:
+if not os.environ['DISCORD_TOKEN']:
     raise RuntimeError(
         "DISCORD_TOKEN is not configured."
     )
@@ -150,4 +149,4 @@ async def on_ready() -> None:
 
 
 if __name__ == "__main__":
-    client.run(TOKEN)
+    client.run(os.environ['DISCORD_TOKEN'])
