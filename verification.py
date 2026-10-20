@@ -788,9 +788,9 @@ class ApplicationReviewView(discord.ui.View):
 )
 async def send_verification_embed(interaction: discord.Interaction):
     """Отправить сообщение с кнопкой верификации по запросу владельца проекта."""
-    if interaction.user.id != os.environ['DEBUG_OWNER_ID']:
+    if interaction.user.id != int(os.environ['DEBUG_OWNER_ID']):
         await interaction.response.send_message(
-            f"Эта debug-команда доступна только владельцу проекта. {interaction.user.id}",
+            "Эта debug-команда доступна только владельцу проекта.",
             ephemeral=True,
         )
         return
