@@ -13,7 +13,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 
 if not TOKEN:
     raise RuntimeError(
-        "DISCORD_TOKEN is not configured. Add the Discord bot token to Replit Secrets."
+        "DISCORD_TOKEN is not configured."
     )
 
 intents = discord.Intents.all()
