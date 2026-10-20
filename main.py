@@ -1,12 +1,14 @@
 import os
 import sys
-import importlib
+from dotenv import load_dotenv
 import time
 from pathlib import Path
 from verification import ApplicationReviewView, DebugGroup, VerificationView
 
 import discord
 from discord import app_commands
+
+load_dotenv()
 
 TOKEN = os.environ['DISCORD_TOKEN']
 
