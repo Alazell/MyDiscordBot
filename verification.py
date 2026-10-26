@@ -333,7 +333,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             )
             return
 
-        category = interaction.guild.get_channel(os.environ['APPLICATION_CATEGORY_ID'])
+        category = interaction.guild.get_channel(int(os.environ['APPLICATION_CATEGORY_ID']))
         if not isinstance(category, discord.CategoryChannel):
             await interaction.followup.send(
                 "Категория для заявок не найдена. Сообщите об этом администрации.",
