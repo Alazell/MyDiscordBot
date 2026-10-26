@@ -119,7 +119,7 @@ def _applicant_id(channel: discord.TextChannel) -> int | None:
 def _has_review_role(interaction: discord.Interaction) -> bool:
     """Проверить наличие роли модератора верификации у автора взаимодействия."""
     return isinstance(interaction.user, discord.Member) and any(
-        role.id == os.environ['REVIEW_ROLE_ID'] for role in interaction.user.roles
+        role.id == int(os.environ['REVIEW_ROLE_ID']) for role in interaction.user.roles
     )
 
 
@@ -130,7 +130,7 @@ async def _set_conversation_access(
     enabled: bool,
 ) -> None:
     """Настроить переписку; при отключении удалить персональные права заявителя."""
-    review_role = channel.guild.get_role(os.environ['REVIEW_ROLE_ID'])
+    review_role = channel.guild.get_role(int(os.environ['REVIEW_ROLE_ID']))
     if review_role is None:
         raise RuntimeError(f"Роль модераторов не найдена: {os.environ['REVIEW_ROLE_ID']}")
 
@@ -157,7 +157,7 @@ async def _lock_application(
     applicant: discord.Member | None,
 ) -> None:
     """Запретить сообщения роли модераторов и удалить персональные права заявителя."""
-    review_role = channel.guild.get_role(os.environ['REVIEW_ROLE_ID'])
+    review_role = channel.guild.get_role(int(os.environ['REVIEW_ROLE_ID']))
     if review_role is not None:
         await channel.set_permissions(
             review_role,
@@ -358,7 +358,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             return
 
         age = int(age_text)
-        age_role_id = os.environ['MINOR_ROLE_ID'] if age < 18 else os.environ['ADULT_ROLE_ID']
+        age_role_id = int(os.environ['MINOR_ROLE_ID']) if age < 18 else int(os.environ['ADULT_ROLE_ID'])
         age_role = (
             interaction.guild.get_role(age_role_id)
             if age_role_id is not None
@@ -389,7 +389,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 view_channel=False
             ),
         }
-        review_role = interaction.guild.get_role(os.environ['REVIEW_ROLE_ID'])
+        review_role = interaction.guild.get_role(int(os.environ['REVIEW_ROLE_ID']))
         if review_role is None:
             await interaction.followup.send(
                 "Роль модераторов не найдена. Сообщите об этом администрации.",
@@ -575,7 +575,7 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
             return
 
         applicant = channel.guild.get_member(applicant_id)
-        log_channel = channel.guild.get_channel(os.environ['VERIFICATION_LOG_CHANNEL_ID'])
+        log_channel = channel.guild.get_channel(int(os.environ['VERIFICATION_LOG_CHANNEL_ID']))
         if not isinstance(log_channel, discord.TextChannel):
             await interaction.followup.send(
                 "Канал журнала верификации не найден. Заявка не закрыта.",
@@ -591,8 +591,8 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
                 )
                 return
 
-            verified_role = channel.guild.get_role(os.environ['VERIFIED_ROLE_ID'])
-            pending_role = channel.guild.get_role(os.environ['PENDING_ROLE_ID'])
+            verified_role = channel.guild.get_role(int(os.environ['VERIFIED_ROLE_ID']))
+            pending_role = channel.guild.get_role(int(os.environ['PENDING_ROLE_ID']))
             if verified_role is None or pending_role is None:
                 await interaction.followup.send(
                     "Одна из ролей для принятия заявки не найдена. Заявка не закрыта.",
