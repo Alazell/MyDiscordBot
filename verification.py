@@ -462,10 +462,9 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 "администратор захотел с вами поговорить.*\n"
                 "*В остальных случаях - запрос примут без вопросов.*\n\n"
                 "**Пока вы ждёте:**\n"
-                "- Можете ознакомиться с <#1452702255877984256>\n"
+                "- Можете ознакомиться с <#1086650486041616395>\n"
                 "- Взять немного персонализирующих ролей в "
-                "<#1451832635285573682>\n"
-                "- *Без проверки вы не можете взять роли, дающие доступ к каналам.*\n"
+                "<#1084044967162417172>\n"
                 "- Расслабиться."
             ),
             color=discord.Color(11927296),
@@ -494,7 +493,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             inline=False,
         )
         admin_embed.add_field(
-            name="Возраст",
+            name="Указанный возраст",
             value=(
                 f"{answers['age']}\n"
                 f"*Роль возраста: {age_role.mention if age_role else 'не назначается'}*"
@@ -712,7 +711,7 @@ class ApplicationReviewView(discord.ui.View):
 
     @discord.ui.button(
         style=discord.ButtonStyle.danger,
-        emoji="❌",
+        emoji="✖",
         custom_id="verification:reject",
     )
     async def reject_button(
