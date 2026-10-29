@@ -3,6 +3,7 @@ import sys
 import time
 from pathlib import Path
 from verification import ApplicationReviewView, DebugGroup, VerificationView
+from debug import ping, reload_modules
 from dotenv import load_dotenv
 import discord
 import importlib
@@ -27,6 +28,10 @@ if not os.environ['DISCORD_TOKEN']:
     raise RuntimeError(
         "DISCORD_TOKEN is not configured."
     )
+
+client.tree = tree
+tree.add_command(ping)
+tree.add_command(reload_modules)
 
 intents = discord.Intents.all()
 intents.message_content = True

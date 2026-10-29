@@ -1,12 +1,13 @@
-from main import *
+import importlib
+import sys
+import time
+from pathlib import Path
 
-intents = discord.Intents.all()
-intents.message_content = True
-client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)
-tree.add_command(DebugGroup())
+import discord
+from discord import app_commands
 
-@tree.command(name="ping", description="Проверить задержку бота")
+
+@app_commands.command(name="ping", description="Проверить задержку бота")
 async def ping(interaction: discord.Interaction):
     # Замеряем время отправки
     start_time = time.monotonic()
@@ -19,14 +20,14 @@ async def ping(interaction: discord.Interaction):
 
     # Формируем ответ с данными
     response_time = round((end_time - start_time) * 1000)  # в миллисекундах
-    websocket_latency = round(client.latency * 1000)  # пинг WebSocket
+    websocket_latency = round(interaction.client.latency * 1000)  # пинг WebSocket
 
     # Обновляем сообщение с результатами
     await interaction.followup.send(
         f"🔄 Бот ответил за {response_time} мс\n"
         f"📶 WebSocket задержка: {websocket_latency} мс"
     )
-@tree.command(name="reload", description="Перезагрузить все модули бота")
+@app_commands.command(name="reload", description="Перезагрузить все модули бота")
 async def reload_modules(interaction: discord.Interaction) -> None:
     allowed_ids = (626052608074711040,)
 
@@ -73,7 +74,7 @@ async def reload_modules(interaction: discord.Interaction) -> None:
             errors.append(f"{name}: {error}")
 
     try:
-        await tree.sync()
+        await interaction.client.tree.sync()
     except Exception as error:
         errors.append(f"sync: {error}")
 
