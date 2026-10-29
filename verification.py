@@ -358,31 +358,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             return
 
         age = int(age_text)
-        age_role_id = int(os.environ['MINOR_ROLE_ID']) if age < 18 else int(os.environ['ADULT_ROLE_ID'])
-        age_role = (
-            interaction.guild.get_role(age_role_id)
-            if age_role_id is not None
-            else None
-        )
-        if age_role_id is not None and age_role is None:
-            await interaction.followup.send(
-                "Роль для указанного возраста не найдена. Сообщите об этом администрации.",
-                ephemeral=True,
-            )
-            return
-
-        if age_role is not None:
-            try:
-                await interaction.user.add_roles(
-                    age_role,
-                    reason="Возраст указан в заявке на верификацию",
-                )
-            except discord.Forbidden:
-                await interaction.followup.send(
-                    "Бот не может выдать возрастную роль. Проверьте права и иерархию ролей.",
-                    ephemeral=True,
-                )
-                return
 
         overwrites = {
             interaction.guild.default_role: discord.PermissionOverwrite(
@@ -496,7 +471,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             name="Указанный возраст",
             value=(
                 f"{answers['age']}\n"
-                f"*Роль возраста: {age_role.mention if age_role else 'не назначается'}*"
             ),
             inline=True,
         )
