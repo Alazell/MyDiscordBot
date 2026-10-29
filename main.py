@@ -29,15 +29,17 @@ if not os.environ['DISCORD_TOKEN']:
         "DISCORD_TOKEN is not configured."
     )
 
-client.tree = tree
-tree.add_command(ping)
-tree.add_command(reload_modules)
+
 
 intents = discord.Intents.all()
 intents.message_content = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 tree.add_command(DebugGroup())
+
+client.tree = tree
+tree.add_command(ping)
+tree.add_command(reload_modules)
 
 async def _setup_hook() -> None:
     client.add_view(VerificationView())
