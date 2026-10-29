@@ -358,31 +358,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             return
 
         age = int(age_text)
-        age_role_id = int(os.environ['MINOR_ROLE_ID']) if age < 18 else int(os.environ['ADULT_ROLE_ID'])
-        age_role = (
-            interaction.guild.get_role(age_role_id)
-            if age_role_id is not None
-            else None
-        )
-        if age_role_id is not None and age_role is None:
-            await interaction.followup.send(
-                "Роль для указанного возраста не найдена. Сообщите об этом администрации.",
-                ephemeral=True,
-            )
-            return
-
-        if age_role is not None:
-            try:
-                await interaction.user.add_roles(
-                    age_role,
-                    reason="Возраст указан в заявке на верификацию",
-                )
-            except discord.Forbidden:
-                await interaction.followup.send(
-                    "Бот не может выдать возрастную роль. Проверьте права и иерархию ролей.",
-                    ephemeral=True,
-                )
-                return
 
         overwrites = {
             interaction.guild.default_role: discord.PermissionOverwrite(
@@ -462,10 +437,9 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 "администратор захотел с вами поговорить.*\n"
                 "*В остальных случаях - запрос примут без вопросов.*\n\n"
                 "**Пока вы ждёте:**\n"
-                "- Можете ознакомиться с <#1452702255877984256>\n"
+                "- Можете ознакомиться с <#1086650486041616395>\n"
                 "- Взять немного персонализирующих ролей в "
-                "<#1451832635285573682>\n"
-                "- *Без проверки вы не можете взять роли, дающие доступ к каналам.*\n"
+                "<#1084044967162417172>\n"
                 "- Расслабиться."
             ),
             color=discord.Color(11927296),
@@ -494,10 +468,9 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             inline=False,
         )
         admin_embed.add_field(
-            name="Возраст",
+            name="Указанный возраст",
             value=(
                 f"{answers['age']}\n"
-                f"*Роль возраста: {age_role.mention if age_role else 'не назначается'}*"
             ),
             inline=True,
         )
@@ -712,7 +685,7 @@ class ApplicationReviewView(discord.ui.View):
 
     @discord.ui.button(
         style=discord.ButtonStyle.danger,
-        emoji="❌",
+        emoji="✖",
         custom_id="verification:reject",
     )
     async def reject_button(
