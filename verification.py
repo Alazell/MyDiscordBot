@@ -12,7 +12,6 @@ load_dotenv()
 
 ANSWER_STORE = Path(__file__).with_name(".verification_answers.json")
 APPLICATION_TOPIC_PREFIX = "verification_application:"
-UNKNOWN_INVITE_VALUE = "Не определено"
 INVITE_SNAPSHOTS: dict[int, dict[str, int]] = {}
 
 
@@ -211,8 +210,16 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             required=True,
         ),
     )
+    question_4 = discord.ui.Label(
+        text="Как вы относитесь к ролевым играм?",
+        description="Text RP, NSFW или SFW.",
+        component=discord.ui.TextInput(
+            custom_id="verification:roleplay",
+            max_length=750
+        )
+    )
 
-    async def on_submit(ctx, self, interaction: discord.Interaction) -> None:
+    async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
 
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
@@ -237,6 +244,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             "direct": "Прямое приглашение — от друга или другого пользователя",
             "partnership": "Партнёр-Пиар — ссылка партнёрства с другим сервером",
         }
+        role_mind = self.question_4.component.value.strip()
         if source_key not in source_names:
             await interaction.followup.send(
                 "Выберите способ присоединения к серверу.",
@@ -322,7 +330,8 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
         answers = {
             "attitude": attitude,
             "age": age_text,
-            "source": source_key
+            "source": source_key,
+            "roleplay": role_mind
         }
         previous_answers = _load_previous_answers()
         previous_answers[str(self.user_id)] = answers
@@ -346,23 +355,20 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
 
         admin_embed = discord.Embed(
             title="Зона администратора",
-            color=discord.Color(6360573),
-        )
+            color=discord.Color(6360573))
         admin_embed.add_field(
             name="Отношение к сообществу",
-            value=answers["attitude"] or "Не указано",
-            inline=False,
-        )
+            value=answers["attitude"] or "Не указано")
         admin_embed.add_field(
-                    name="Указанный возраст",
-                    value=(
-                        f"{answers['age']}\n"
-                    ),
-                    inline=True,
-                )
+            name="Указанный возраст",
+            value=(f"{answers['age']}\n"), inline=True)
         admin_embed.add_field(
             name="Метод присоединения",
             value=(f"{source_names[source_key]}\n"))
+        admin_embed.add_field(
+            name="Ролевое мнение",
+            value=(f"{answers['role_mind']}\n"),
+            inline=False)
 
         await application_channel.send(
             embeds=[welcome_embed, admin_embed],
@@ -487,7 +493,6 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
             )
             return
 
-        saved_answers = _load_previous_answers().get(str(applicant_id), {})
         reason = self.reason.value.strip()
         closure_embed = discord.Embed(
             title="Верификация закрыта",
@@ -506,11 +511,6 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
         closure_embed.add_field(
             name="Статус заявки",
             value=f"{self.status}\n*Причина:*\n{reason}",
-            inline=False,
-        )
-        closure_embed.add_field(
-            name="Приглашён:",
-            value=saved_answers.get("inviter", UNKNOWN_INVITE_VALUE),
             inline=False,
         )
 
@@ -671,9 +671,8 @@ async def send_verification_embed(interaction: discord.Interaction):
     embed.set_thumbnail(
     url="https://i.pinimg.com/736x/22/05/b8/2205b85e6ee1a84401729f80115ca54e.jpg")
     embed.set_footer(
-    text="- .Alazell.              Если есть идеи - подавайте их мне."
-    icon_url="https://cdn.discordapp.com/avatars/626052608074711040/a4a7338b3faf52101ebfdb7d57360e92.webp?size=1024"
-    )
+    text="- .Alazell.              Если есть идеи - подавайте их мне.",
+    icon_url="https://cdn.discordapp.com/avatars/626052608074711040/a4a7338b3faf52101ebfdb7d57360e92.webp?size=1024")
     # Отправляем сообщение
     await interaction.response.send_message(
         embed=embed,
