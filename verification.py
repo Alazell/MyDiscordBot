@@ -396,7 +396,7 @@ class VerificationView(discord.ui.View):
         button: discord.ui.Button,
     ) -> None:
         await interaction.response.send_modal(
-            VerificationModal(interaction.user.id)
+            VerificationModal()
         )
 
 
