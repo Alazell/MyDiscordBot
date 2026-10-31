@@ -416,8 +416,8 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             "attitude": attitude,
             "age": age_text,
             "source": source_key,
-            "invite_link": UNKNOWN_INVITE_VALUE,
-            "inviter": UNKNOWN_INVITE_VALUE,
+            "invite_link": invite.code,
+            "inviter": inviter,
             "invite_properties": UNKNOWN_INVITE_VALUE,
         }
         previous_answers = _load_previous_answers()
@@ -455,6 +455,13 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             inline=False,
         )
         admin_embed.add_field(
+                    name="Указанный возраст",
+                    value=(
+                        f"{answers['age']}\n"
+                    ),
+                    inline=True,
+                )
+        admin_embed.add_field(
             name="Метод присоединения",
             value=(
                 f"{source_names[source_key]}\n"
@@ -466,13 +473,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 f"{answers['invite_properties']}"
             ),
             inline=False,
-        )
-        admin_embed.add_field(
-            name="Указанный возраст",
-            value=(
-                f"{answers['age']}\n"
-            ),
-            inline=True,
         )
 
         await application_channel.send(

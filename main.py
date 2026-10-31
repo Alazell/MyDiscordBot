@@ -120,7 +120,6 @@ async def reload_modules(interaction: discord.Interaction) -> None:
             message = message[len(chunk):].lstrip("\n")
 
 #####################################################################
-
 @client.event
 async def on_ready() -> None:
     if client.user is None:
