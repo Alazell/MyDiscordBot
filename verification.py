@@ -381,8 +381,9 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
 
 
 class VerificationView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, user_id):
         super().__init__(timeout=None)
+        self.user_id = user_id
 
     @discord.ui.button(
         label="Жмяк!",
