@@ -334,7 +334,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             "role_mind": role_mind
         }
         previous_answers = _load_previous_answers()
-        previous_answers[str(self.user_id)] = answers
+        previous_answers[str(interaction.user.id)] = answers
 
         welcome_embed = discord.Embed(
             title="Приветственная информация",
