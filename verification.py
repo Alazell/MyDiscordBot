@@ -381,7 +381,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
 
 
 class VerificationView(discord.ui.View):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(timeout=None)
 
     @discord.ui.button(
