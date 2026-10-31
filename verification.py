@@ -26,76 +26,6 @@ def _load_previous_answers() -> dict[str, dict[str, str]]:
 
     return data if isinstance(data, dict) else {}
 
-
-def _save_previous_answers(answers: dict[str, dict[str, str]]) -> None:
-    """Сохранить ответы в JSON, заменив хранилище временным файлом."""
-    temporary_store = ANSWER_STORE.with_suffix(".tmp")
-    with temporary_store.open("w", encoding="utf-8") as file:
-        json.dump(answers, file, ensure_ascii=False, indent=2)
-    temporary_store.replace(ANSWER_STORE)
-
-
-async def refresh_invite_snapshot(guild: discord.Guild) -> None:
-    """Обновить снимок счётчиков приглашений, если Discord разрешает их чтение."""
-    try:
-        invites = await guild.invites()
-    except (discord.Forbidden, discord.HTTPException):
-        return
-
-    INVITE_SNAPSHOTS[guild.id] = {
-        invite.code: invite.uses or 0
-        for invite in invites
-    }
-
-
-async def record_member_invite(member: discord.Member) -> None:
-    """Определить вероятное приглашение по росту счётчика и сохранить его данные."""
-    try:
-        invites = await member.guild.invites()
-    except (discord.Forbidden, discord.HTTPException):
-        return
-
-    previous_uses = INVITE_SNAPSHOTS.get(member.guild.id, {})
-    used_invites = [
-        invite
-        for invite in invites
-        if (invite.uses or 0) > previous_uses.get(invite.code, 0)
-    ]
-    INVITE_SNAPSHOTS[member.guild.id] = {
-        invite.code: invite.uses or 0
-        for invite in invites
-    }
-
-    if not used_invites:
-        return
-
-    invite = max(
-        used_invites,
-        key=lambda item: (item.uses or 0) - previous_uses.get(item.code, 0),
-    )
-    inviter = invite.inviter.mention if invite.inviter else UNKNOWN_INVITE_VALUE
-    expires_at = (
-        invite.expires_at.strftime("%Y-%m-%d %H:%M UTC")
-        if invite.expires_at
-        else "не истекает"
-    )
-    details = {
-        "invite_link": f"https://discord.gg/{invite.code}",
-        "inviter": inviter,
-        "invite_properties": (
-            f"использований: {invite.uses or 0}\n"
-            f"истекает: {expires_at}"
-        ),
-    }
-
-    answers = _load_previous_answers()
-    answers.setdefault(str(member.id), {}).update(details)
-    try:
-        _save_previous_answers(answers)
-    except OSError:
-        pass
-
-
 def _channel_name(member: discord.Member) -> str:
     """Сформировать имя канала заявки из имени участника длиной до 100 символов."""
     display_name = member.nick or member.name
@@ -245,7 +175,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
     )
     question_2 = discord.ui.Label(
         text="2. Сколько вам лет?",
-        description="Называйте свой настоящий возраст. Плейсхолдер '14' это не подсказка.",
+        description="Называйте свой настоящий возраст.",
         component=discord.ui.TextInput(
             placeholder="14",
             custom_id="verification:age",
@@ -281,26 +211,8 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             required=True,
         ),
     )
-    def __init__(self, user_id: int):
-        """Создать форму заявки, подставив сохранённые ответы пользователя."""
-        super().__init__()
-        self.user_id = user_id
 
-        previous_answers = _load_previous_answers().get(str(user_id), {})
-        for field, key in (
-            (self.question_1.component, "attitude"),
-            (self.question_2.component, "age"),
-        ):
-            if previous_answers.get(key):
-                field.default = previous_answers[key]
-
-        previous_source = previous_answers.get("source")
-        if previous_source:
-            for option in self.question_3.component.options:
-                option.default = option.value == previous_source
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        """Проверить ответы, назначить возрастную роль и создать канал новой заявки."""
+    async def on_submit(ctx, self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
 
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
@@ -309,12 +221,11 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 ephemeral=True,
             )
             return
-
         attitude = self.question_1.component.value.strip()
         age_text = self.question_2.component.value.strip()
         if not age_text.isdigit() or not 1 <= int(age_text) <= 120:
             await interaction.followup.send(
-                "Укажите настоящий возраст двумя цифрами.",
+                "Укажите настоящий возраст.",
                 ephemeral=True,
             )
             return
@@ -357,8 +268,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             )
             return
 
-        age = int(age_text)
-
         overwrites = {
             interaction.guild.default_role: discord.PermissionOverwrite(
                 view_channel=False
@@ -390,7 +299,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 manage_channels=True,
                 manage_messages=True,
             )
-
         try:
             application_channel = await interaction.guild.create_text_channel(
                 name=_channel_name(interaction.user),
@@ -411,22 +319,13 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 ephemeral=True,
             )
             return
-
         answers = {
             "attitude": attitude,
             "age": age_text,
-            "source": source_key,
-            "invite_link": invite.code,
-            "inviter": inviter,
-            "invite_properties": UNKNOWN_INVITE_VALUE,
+            "source": source_key
         }
         previous_answers = _load_previous_answers()
         previous_answers[str(self.user_id)] = answers
-        try:
-            _save_previous_answers(previous_answers)
-        except OSError:
-            # Заявка уже создана; отсутствие сохранения не должно скрывать её от пользователя.
-            pass
 
         welcome_embed = discord.Embed(
             title="Приветственная информация",
@@ -463,17 +362,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
                 )
         admin_embed.add_field(
             name="Метод присоединения",
-            value=(
-                f"{source_names[source_key]}\n"
-                "*подтверждение по ссылке:*\n"
-                f"{answers['invite_link']}\n"
-                "*приглашён участником:*\n"
-                f"{answers['inviter']}\n"
-                "*свойства ссылки-приглашения*\n"
-                f"{answers['invite_properties']}"
-            ),
-            inline=False,
-        )
+            value=(f"{source_names[source_key]}\n"))
 
         await application_channel.send(
             embeds=[welcome_embed, admin_embed],
@@ -487,7 +376,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
 
 class VerificationView(discord.ui.View):
     def __init__(self):
-        """Создать постоянную панель с кнопкой подачи заявки."""
         super().__init__(timeout=None)
 
     @discord.ui.button(
@@ -501,7 +389,6 @@ class VerificationView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button,
     ) -> None:
-        """Открыть форму заявки для пользователя, нажавшего кнопку."""
         await interaction.response.send_modal(
             VerificationModal(interaction.user.id)
         )
@@ -760,37 +647,36 @@ class ApplicationReviewView(discord.ui.View):
     description="Отправить embed для подачи заявки на верификацию",
 )
 async def send_verification_embed(interaction: discord.Interaction):
-    """Отправить сообщение с кнопкой верификации по запросу владельца проекта."""
     if interaction.user.id != int(os.environ['DEBUG_OWNER_ID']):
         await interaction.response.send_message(
             "Эта debug-команда доступна только владельцу проекта.",
             ephemeral=True,
         )
         return
-
-    # Создаем эмбед
+    
     embed = discord.Embed(
-        title="Наш сервер - это прекрасное место чтобы расслабиться в компании друзей вечерком! 🍻 *дзынь*",
-        description="Мы стремимся сохранить приятную атмосферу в нашем уютном, пивном заведении. Рады видеть тебя здесь! 🌿\n\n"
-                   "<:firHype:1451491830993653760>__Жмякни на кнопочку ниже чтобы оставить заявку для входа на сервер!__ :MaysiBounce:",
-        color=discord.Color.from_rgb(65, 105, 225)  # Приблизительный цвет из данных
+    title="Точка верификации",
+    description=("""
+    Поздравляем!
+    Вы были приглашены на этот закрытый сервер с проверенно-взрослыми фырками разных вкусов и характеров.
+    Для последующего общения на сервере, вам, как и полагается, необходимо пройти простой опросник.
+    Опросник читают живые люди, администраторы, потому время принятия может розниться.
+    В случае если к вам возникнут вопросы - вас вызовут.
+    
+    Приятного времяпровождения!"""),
+    color=13401344)
+    embed.set_author(
+    name="Horny Club",
+    icon_url="https://cdn.discordapp.com/icons/1083623196164632616/12e253dcd6b354a20218193c7849ebff.webp?size=1024")
+    embed.set_thumbnail(
+    url="https://i.pinimg.com/736x/22/05/b8/2205b85e6ee1a84401729f80115ca54e.jpg")
+    embed.set_footer(
+    text="- .Alazell.              Если есть идеи - подавайте их мне."
+    icon_url="https://cdn.discordapp.com/avatars/626052608074711040/a4a7338b3faf52101ebfdb7d57360e92.webp?size=1024"
     )
-    embed.set_author(name="🐾Пивзавод🍺")
-    embed.set_image(url="https://cdn.discordapp.com/attachments/1451481228275351702/1545157457305669743/ezgif-8d871781dcd69a7b.gif")
-
     # Отправляем сообщение
     await interaction.response.send_message(
         embed=embed,
         view=VerificationView(),
         ephemeral=False
     )
-
-class DebugGroup(discord.app_commands.Group):
-    """Отладочные команды проекта"""
-
-    def __init__(self):
-        """Создать группу debug и зарегистрировать команду сообщения верификации."""
-        super().__init__(name="debug", description="Отладочные команды проекта")
-        # Добавляем новые команды сюда
-        self.add_command(send_verification_embed)
-

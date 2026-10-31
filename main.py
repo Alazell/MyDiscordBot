@@ -2,7 +2,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from verification import ApplicationReviewView, DebugGroup, VerificationView
+from verification import ApplicationReviewView, VerificationView, send_verification_embed
 from dotenv import load_dotenv
 import discord
 import importlib
@@ -17,8 +17,6 @@ if not os.environ['DISCORD_TOKEN']:
 intents = discord.Intents.all()
 intents.message_content = True
 client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)
-tree.add_command(DebugGroup())
 
 async def _setup_hook() -> None:
     client.add_view(VerificationView())
@@ -28,6 +26,15 @@ client.setup_hook = _setup_hook
 #####################################################################
 TEST_GUILD_ID = 1017754395968012308
 TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
+
+class DebugGroup(discord.app_commands.Group):
+    def __init__(self):
+        super().__init__(name="debug", description="Отладочные команды проекта")
+        self.add_command(send_verification_embed, )
+
+tree = app_commands.CommandTree(client)
+tree.add_command(DebugGroup())
+
 #####################################################################
 
 # Команда ping
