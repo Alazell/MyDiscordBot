@@ -214,7 +214,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
         text="Как вы относитесь к ролевым играм?",
         description="Text RP, NSFW или SFW.",
         component=discord.ui.TextInput(
-            custom_id="verification:roleplay",
+            custom_id="verification:role_mind",
             max_length=750
         )
     )
@@ -331,7 +331,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             "attitude": attitude,
             "age": age_text,
             "source": source_key,
-            "roleplay": role_mind
+            "role_mind": role_mind
         }
         previous_answers = _load_previous_answers()
         previous_answers[str(self.user_id)] = answers
