@@ -458,9 +458,10 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
                 return
 
             verified_role = channel.guild.get_role(int(os.environ['VERIFIED_ROLE_ID']))
-            if verified_role is None:
+            pending_role = channel.guild.get_role(int(os.environ['PENDING_ROLE_ID']))
+            if verified_role is None or pending_role is None:
                 await interaction.followup.send(
-                    "Роль верификации для принятия заявки не найдена. Заявка не закрыта.",
+                    "Одна из ролей для принятия заявки не найдена. Заявка не закрыта.",
                     ephemeral=True,
                 )
                 return
@@ -468,6 +469,10 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
             try:
                 await applicant.add_roles(
                     verified_role,
+                    reason="Заявка на верификацию принята",
+                )
+                await applicant.remove_roles(
+                    pending_role,
                     reason="Заявка на верификацию принята",
                 )
             except discord.Forbidden:
