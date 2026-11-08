@@ -85,7 +85,6 @@ async def _lock_application(
     channel: discord.TextChannel,
     applicant: discord.Member | None,
 ) -> None:
-    """Запретить сообщения роли модераторов и удалить персональные права заявителя."""
     review_role = channel.guild.get_role(int(os.environ['REVIEW_ROLE_ID']))
     if review_role is not None:
         await channel.set_permissions(
@@ -99,7 +98,6 @@ async def _lock_application(
 
 
 async def _render_transcript(channel: discord.TextChannel) -> str:
-    """Вернуть HTML-транскрипт истории канала с экранированием текста."""
     messages = [
         message async for message in channel.history(limit=None, oldest_first=True)
     ]
@@ -410,12 +408,10 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
     )
 
     def __init__(self, status: str):
-        """Создать форму причины закрытия заявки с указанным статусом."""
         super().__init__()
         self.status = status
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        """Обработать закрытие заявки модератором, отправить транскрипт и удалить канал."""
         if not _has_review_role(interaction):
             await interaction.response.send_message(
                 "У вас нет доступа к обработке заявок.",
@@ -514,7 +510,7 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
                 embed=closure_embed,
                 file=discord.File(
                     io.BytesIO(transcript.encode("utf-8")),
-                    filename=f"transcript-{channel.id}.html",
+                    filename=f"transcript-{applicant_id}.html",
                 ),
             )
             await channel.delete(reason=f"Заявка закрыта: {self.status}")
