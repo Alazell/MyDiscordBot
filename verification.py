@@ -7,6 +7,7 @@ from pathlib import Path
 import os
 import discord
 from discord import app_commands
+import aiosqlite
 load_dotenv()
 
 
@@ -67,16 +68,14 @@ async def _set_conversation_access(
         review_role,
         view_channel=True,
         read_message_history=True,
-        send_messages=enabled,
-    )
+        send_messages=enabled)
     if enabled:
         await channel.set_permissions(
             applicant,
             view_channel=True,
             read_message_history=True,
             send_messages=True,
-            attach_files=True,
-        )
+            attach_files=True)
     else:
         await channel.set_permissions(applicant, overwrite=None)
 
@@ -91,8 +90,7 @@ async def _lock_application(
             review_role,
             view_channel=True,
             read_message_history=True,
-            send_messages=False,
-        )
+            send_messages=False)
     if applicant is not None:
         await channel.set_permissions(applicant, overwrite=None)
 
@@ -216,75 +214,62 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             max_length=750
         )
     )
+    question_5 = discord.ui.Label(
+        text="Дата вашего дня рождения?",
+        description="Бот использует внутреннюю систему поздравлений. Это опционально.",
+        component=discord.ui.TextInput(
+            placeholder="ДД.ММ",
+            custom_id="verification:birthday",
+            max_length=5,
+            min_length=5,
+            required=False
+        )
+    )
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
 
-        if interaction.guild is None or not isinstance(interaction.user, discord.Member):
-            await interaction.followup.send(
-                "Заявку можно отправить только на сервере.",
-                ephemeral=True,
-            )
-            return
         attitude = self.question_1.component.value.strip()
         age_text = self.question_2.component.value.strip()
-        if not age_text.isdigit() or not 1 <= int(age_text) <= 120:
-            await interaction.followup.send(
-                "Укажите настоящий возраст.",
-                ephemeral=True,
-            )
-            return
-
         source_values = self.question_3.component.values
+        role_mind = self.question_4.component.value.strip()
+        birthday = self.question_5.component.value.strip()
+        
+        category = interaction.guild.get_channel(int(os.environ['APPLICATION_CATEGORY_ID']))
+        application_topic = f"{APPLICATION_TOPIC_PREFIX}{interaction.user.id}"
+
+        if not age_text.isdigit() or not 1 <= int(age_text) <= 120:
+            await interaction.followup.send("Укажите настоящий возраст.",ephemeral=True)
+            return
+        if not isinstance(category, discord.CategoryChannel):
+            await interaction.followup.send("Категория для заявок не найдена. Сообщите об этом администрации.",ephemeral=True)
+            return
+        existing_channel = next((
+                        channel
+                        for channel in category.text_channels
+                        if channel.topic == application_topic   ),None)
+        if existing_channel is not None:
+            await interaction.followup.send(f"У вас уже есть открытая заявка: {existing_channel.mention}",ephemeral=True)
+            return
+        
         source_key = source_values[0] if source_values else ""
         source_names = {
             "monitoring": "Бот мониторинга — сайт со списком серверов",
             "direct": "Прямое приглашение — от друга или другого пользователя",
-            "partnership": "Партнёр-Пиар — ссылка партнёрства с другим сервером",
-        }
-        role_mind = self.question_4.component.value.strip()
-        if source_key not in source_names:
-            await interaction.followup.send(
-                "Выберите способ присоединения к серверу.",
-                ephemeral=True,
-            )
-            return
+            "partnership": "Партнёр-Пиар — ссылка партнёрства с другим сервером"}
 
-        category = interaction.guild.get_channel(int(os.environ['APPLICATION_CATEGORY_ID']))
-        if not isinstance(category, discord.CategoryChannel):
-            await interaction.followup.send(
-                "Категория для заявок не найдена. Сообщите об этом администрации.",
-                ephemeral=True,
-            )
-            return
+        if birthday:
+            day, month = map(int, birthday.split("."))
+            async with aiosqlite.connect("birthdays.db") as db:
+                await db.execute("INSERT INTO birthdays VALUES (?, ?, ?)", (interaction.user.id, day, month))
+                await db.commit()
 
-        application_topic = f"{APPLICATION_TOPIC_PREFIX}{interaction.user.id}"
-        existing_channel = next(
-            (
-                channel
-                for channel in category.text_channels
-                if channel.topic == application_topic
-            ),
-            None,
-        )
-        if existing_channel is not None:
-            await interaction.followup.send(
-                f"У вас уже есть открытая заявка: {existing_channel.mention}",
-                ephemeral=True,
-            )
-            return
 
-        overwrites = {
-            interaction.guild.default_role: discord.PermissionOverwrite(
-                view_channel=False
-            ),
-        }
+        overwrites = {interaction.guild.default_role: discord.PermissionOverwrite(view_channel=False)}
+        
         review_role = interaction.guild.get_role(int(os.environ['REVIEW_ROLE_ID']))
         if review_role is None:
-            await interaction.followup.send(
-                "Роль модераторов не найдена. Сообщите об этом администрации.",
-                ephemeral=True,
-            )
+            await interaction.followup.send("Роль модераторов не найдена. Сообщите об этом администрации.",ephemeral=True)
             return
 
         overwrites[review_role] = discord.PermissionOverwrite(
@@ -529,37 +514,28 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
 
 class ApplicationReviewView(discord.ui.View):
     def __init__(self, *, question_disabled: bool = False):
-        """Создать постоянную панель модерации с заданной доступностью кнопки вопроса."""
         super().__init__(timeout=None)
         self.question_button.disabled = question_disabled
 
     async def _deny_without_role(self, interaction: discord.Interaction) -> bool:
-        """Сообщить об отсутствии роли модератора и вернуть True при отказе."""
         if _has_review_role(interaction):
             return False
 
         await interaction.response.send_message(
             "У вас нет доступа к обработке заявок.",
-            ephemeral=True,
-        )
+            ephemeral=True)
         return True
 
     @discord.ui.button(
         style=discord.ButtonStyle.success,
         emoji="✅",
-        custom_id="verification:accept",
-    )
+        custom_id="verification:accept")
     async def accept_button(
         self,
         interaction: discord.Interaction,
-        button: discord.ui.Button,
-    ) -> None:
-        """Открыть модератору форму причины принятия заявки."""
-        if await self._deny_without_role(interaction):
-            return
-        await interaction.response.send_modal(
-            ClosureReasonModal(status="ПРИНЯТО ✅")
-        )
+        button: discord.ui.Button) -> None:
+        if await self._deny_without_role(interaction): return
+        await interaction.response.send_modal(ClosureReasonModal(status="ПРИНЯТО ✅"))
 
     @discord.ui.button(
         style=discord.ButtonStyle.danger,
@@ -633,10 +609,7 @@ class ApplicationReviewView(discord.ui.View):
 
 
 # Команда отладки для отправки embed-сообщения верификации
-@app_commands.command(
-    name="verification_embed",
-    description="Отправить embed для подачи заявки на верификацию",
-)
+@app_commands.command(name="verification_embed", description="Отправить embed для подачи заявки на верификацию")
 async def send_verification_embed(interaction: discord.Interaction):
     if interaction.user.id != int(os.environ['DEBUG_OWNER_ID']):
         await interaction.response.send_message(
