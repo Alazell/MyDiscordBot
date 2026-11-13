@@ -25,6 +25,22 @@ async def birthday(interaction: discord.Interaction, member: discord.Member = No
         async with db.execute("SELECT day, month FROM birthdays WHERE user_id = ?", (target.id,)) as cursor:
             row = await cursor.fetchone()
         day, month = row
+    if row is None:
+            if is_self: await interaction.response.send_message(embed = discord.Embed(
+                    color= discord.Color.from_str('0071ff'),
+                    title= f'Дата рождения не обнаружена.',
+                    description= f'Воспользуйтесь кнопкой чтобы настроить значения.')
+                    .set_author(name=target.name, url=f'https://discord.com/users/{target.id}'),
+                    view=ChangeBirthdayView(target.id))
+            else: await interaction.response.send_message(
+                f"У **{target.display_name}** ещё не указана дата рождения", ephemeral=True)
+    else: await interaction.response.send_message(embed=discord.Embed(
+        color= discord.Color.from_str('0071ff'),
+        title= f'{day:02d}.{month:02d}  {title}',
+        description= f'А так же `{count_hour}` часов, `{count_min}` минут и `{count_sec}` секунд.')
+        .set_author(name=target.name, url=f'https://discord.com/users/{target.id}')
+        .set_footer(text= 'Совершили ошибку? ↙Введите новое значение по кнопке!'),
+        view=ChangeBirthdayView(target.id))
 
     now = datetime.now()
     today = now.replace(month=month, day=day) #день рождения в этом году
@@ -64,21 +80,3 @@ async def birthday(interaction: discord.Interaction, member: discord.Member = No
                     "Вы не можете изменять чужую дату. Используйте команду в отношении себя для изменения.", ephemeral=True)
                 return
             await interaction.response.send_modal(ChangeBirthdayModal())
-
-
-    if row is None:
-        if is_self: await interaction.response.send_message(embed = discord.Embed(
-                color= discord.Color.from_str('0071ff'),
-                title= f'Дата рождения не обнаружена.',
-                description= f'Воспользуйтесь кнопкой чтобы настроить значения.')
-                .set_author(name=target.name, url=f'https://discord.com/users/{target.id}'),
-                view=ChangeBirthdayView(target.id))
-        else: await interaction.response.send_message(
-            f"У **{target.display_name}** ещё не указана дата рождения", ephemeral=True)
-    else: await interaction.response.send_message(embed=discord.Embed(
-        color= discord.Color.from_str('0071ff'),
-        title= f'{day:02d}.{month:02d}  {title}',
-        description= f'А так же `{count_hour}` часов, `{count_min}` минут и `{count_sec}` секунд.')
-        .set_author(name=target.name, url=f'https://discord.com/users/{target.id}')
-        .set_footer(text= 'Совершили ошибку? ↙Введите новое значение по кнопке!'),
-        view=ChangeBirthdayView(target.id))

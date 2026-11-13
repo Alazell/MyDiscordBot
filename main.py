@@ -17,7 +17,7 @@ if not os.environ['DISCORD_TOKEN']:
 
 intents = discord.Intents.all()
 intents.message_content = True
-client = discord.Client(intents=intents, activity=discord.Game(name="ваших личных портах"))
+client = discord.Client(intents=intents, activity=discord.CustomActivity(name="*Сладко прилизывается, подстраиваясь над вашими метаданными*"))
 
 async def _setup_hook() -> None:
     client.add_view(VerificationView())
@@ -57,7 +57,7 @@ async def reload_modules(interaction: discord.Interaction) -> None:
             ephemeral=True)
         return
 
-    await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer(ephemeral=False)
 
     project_dir = Path(__file__).resolve().parent
     dependency_dir = project_dir / ".pythonlibs"
@@ -99,7 +99,7 @@ async def reload_modules(interaction: discord.Interaction) -> None:
             chunk = message[:2000]
             split_at = chunk.rfind("\n")
             if len(message) > 2000 and split_at > 0: chunk = message[:split_at]
-            await interaction.followup.send(chunk, ephemeral=True)
+            await interaction.followup.send(chunk, ephemeral=False)
             message = message[len(chunk):].lstrip("\n")
 
 #####################################################################
@@ -120,9 +120,9 @@ async def on_ready() -> None:
 
     try:
         count = await birthday.init_db()
-        print(f'birthday.db загружен и имеет {count} пользователей в списке.')
+        print(f'birthdays.db загружен и имеет {count} пользователей в списке.')
     except Exception as error:
-        print(f'Возникла ошибка при загрузке birthday.db: {error}')
+        print(f'Возникла ошибка при загрузке birthdays.db: {error}')
 
     print(f"Discord-бот запущен как {client.user}")
     print('Статус профиля: "Я существую"')
@@ -133,5 +133,6 @@ debug_group.add_command(send_verification_embed)
 debug_group.add_command(reload_modules)
 tree.add_command(debug_group)
 tree.add_command(ping)
+tree.add_command(birthday.birthday)
 if __name__ == "__main__":
     client.run(os.environ['DISCORD_TOKEN'])
