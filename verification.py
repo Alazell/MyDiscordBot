@@ -220,32 +220,34 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             placeholder="ДД.ММ",
             custom_id="verification:birthday",
             max_length=5,
-            min_lenght=5,
-            requited=False
+            min_length=5,
+            required=False
         )
     )
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        
         await interaction.response.defer(ephemeral=True)
 
         attitude = self.question_1.component.value.strip()
         age_text = self.question_2.component.value.strip()
+        source_values = self.question_3.component.values
+        role_mind = self.question_4.component.value.strip()
+        birthday = self.question_5.component.value.strip()
+
+
         if not age_text.isdigit() or not 1 <= int(age_text) <= 120:
             await interaction.followup.send(
                 "Укажите настоящий возраст.",
                 ephemeral=True,
             )
             return
-
-        source_values = self.question_3.component.values
+        
         source_key = source_values[0] if source_values else ""
         source_names = {
             "monitoring": "Бот мониторинга — сайт со списком серверов",
             "direct": "Прямое приглашение — от друга или другого пользователя",
             "partnership": "Партнёр-Пиар — ссылка партнёрства с другим сервером",
         }
-        role_mind = self.question_4.component.value.strip()
 
         category = interaction.guild.get_channel(int(os.environ['APPLICATION_CATEGORY_ID']))
         if not isinstance(category, discord.CategoryChannel):

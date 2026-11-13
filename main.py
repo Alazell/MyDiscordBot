@@ -28,13 +28,11 @@ client.setup_hook = _setup_hook
 TEST_GUILD_ID = 1017754395968012308
 TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
 
+tree = app_commands.CommandTree(client)
 class DebugGroup(discord.app_commands.Group):
     def __init__(self):
         super().__init__(name="debug", description="Отладочные команды проекта")
-        self.add_command(send_verification_embed, reload_modules)
-
-tree = app_commands.CommandTree(client)
-tree.add_command(DebugGroup())
+debug_group = DebugGroup()
 
 #####################################################################
 @app_commands.command(name="ping", description="Проверить задержку бота")
@@ -126,7 +124,7 @@ async def on_ready() -> None:
         print(f"Ошибка синхронизации команд: {error}")
 
     try:
-        count = birthday.init_db(count)
+        count = await birthday.init_db()
         print(f'birthday.db загружен и имеет {count} пользователей в списке.')
     except Exception as error:
         print(f'Возникла ошибка при загрузке birthday.db: {error}')
@@ -135,5 +133,10 @@ async def on_ready() -> None:
     print('Статус профиля: "Я существую"')
 
 
+
+debug_group.add_command(send_verification_embed)
+debug_group.add_command(reload_modules)
+tree.add_command(debug_group)
+tree.add_command(ping)
 if __name__ == "__main__":
     client.run(os.environ['DISCORD_TOKEN'])
