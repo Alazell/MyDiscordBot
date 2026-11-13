@@ -3,9 +3,8 @@ import discord
 from discord import app_commands
 from datetime import datetime
 
-DB_PATH = "birthdays.db"
 async def init_db() -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect("birthdays.db") as db:
         await db.execute("""
             CREATE TABLE IF NOT EXISTS birthdays (
                 user_id INTEGER PRIMARY KEY,
@@ -19,7 +18,7 @@ async def init_db() -> int:
 
 
 @app_commands.command(name="дата-рождения", description="Проверяет/изменяет дату рождения тебя/участника")
-async def birthday(interaction: discord.Interaction, member: discord.Member = None):
+async def set_birthday(interaction: discord.Interaction, member: discord.Member = None):
     target = member or interaction.user
     is_self = target.id == interaction.user.id
 
@@ -32,6 +31,11 @@ async def birthday(interaction: discord.Interaction, member: discord.Member = No
                 custom_id="Date_Input:birthday",
                 min_length=5,
                 max_length=5))
+        async def on_submit(self, interaction: discord.Interaction) -> None:
+            day, month = map(int, self.Date_Input.component.value.strip().split("."))
+            async with aiosqlite.connect("birthdays.db") as db:
+                await db.execute("INSERT INTO birthdays VALUES (?, ?, ?)", (interaction.user.id, day, month))
+                await db.commit()
     class ChangeBirthdayView(discord.ui.View):
             def __init__(self, target_id: int):
                 super().__init__(timeout=120)
@@ -45,10 +49,20 @@ async def birthday(interaction: discord.Interaction, member: discord.Member = No
                     return
                 await interaction.response.send_modal(ChangeBirthdayModal())
 
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect("birthdays.db") as db:
         async with db.execute("SELECT day, month FROM birthdays WHERE user_id = ?", (target.id,)) as cursor:
             row = await cursor.fetchone()
-        day, month = row
+        if row is None:
+                if is_self: await interaction.response.send_message(embed = discord.Embed(
+                    color= discord.Colour.from_str('#0071ff'),
+                    title= f'Дата рождения не обнаружена.',
+                    description= f'Воспользуйтесь кнопкой чтобы настроить значения.')
+                    .set_author(name=target.name, url=f'https://discord.com/users/{target.id}', icon_url=target.display_avatar.url),
+                    view=ChangeBirthdayView(target.id))
+                else: await interaction.response.send_message(
+                    f"У **{target.display_name}** ещё не указана дата рождения", ephemeral=True)
+                return
+        day, month = int(row[0]), int(row[1])
 
     now = datetime.now()
     today = now.replace(month=month, day=day) #день рождения в этом году
@@ -67,19 +81,10 @@ async def birthday(interaction: discord.Interaction, member: discord.Member = No
     if int(delta.total_seconds()) == 0: title = f"—  СЕГОДНЯ! 🎉"
     else: title = f"—  ЧЕРЕЗ {count_day} ДНЕЙ"
 
-    if row is None:
-            if is_self: await interaction.response.send_message(embed = discord.Embed(
-                    color= discord.Color.from_str('0071ff'),
-                    title= f'Дата рождения не обнаружена.',
-                    description= f'Воспользуйтесь кнопкой чтобы настроить значения.')
-                    .set_author(name=target.name, url=f'https://discord.com/users/{target.id}'),
-                    view=ChangeBirthdayView(target.id))
-            else: await interaction.response.send_message(
-                f"У **{target.display_name}** ещё не указана дата рождения", ephemeral=True)
-    else: await interaction.response.send_message(embed=discord.Embed(
-        color= discord.Color.from_str('0071ff'),
+    await interaction.response.send_message(embed=discord.Embed(
+        color= discord.Colour.from_str('#0071ff'),
         title= f'{day:02d}.{month:02d}  {title}',
         description= f'А так же `{count_hour}` часов, `{count_min}` минут и `{count_sec}` секунд.')
-        .set_author(name=target.name, url=f'https://discord.com/users/{target.id}')
+        .set_author(name=target.name, url=f'https://discord.com/users/{target.id}', icon_url=target.display_avatar.url)
         .set_footer(text= 'Совершили ошибку? ↙Введите новое значение по кнопке!'),
         view=ChangeBirthdayView(target.id))

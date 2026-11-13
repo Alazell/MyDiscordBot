@@ -133,6 +133,6 @@ debug_group.add_command(send_verification_embed)
 debug_group.add_command(reload_modules)
 tree.add_command(debug_group)
 tree.add_command(ping)
-tree.add_command(birthday.birthday)
+tree.add_command(birthday.set_birthday)
 if __name__ == "__main__":
     client.run(os.environ['DISCORD_TOKEN'])

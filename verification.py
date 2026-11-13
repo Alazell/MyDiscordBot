@@ -7,6 +7,7 @@ from pathlib import Path
 import os
 import discord
 from discord import app_commands
+import aiosqlite
 load_dotenv()
 
 
@@ -233,57 +234,42 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
         source_values = self.question_3.component.values
         role_mind = self.question_4.component.value.strip()
         birthday = self.question_5.component.value.strip()
-
+        
+        category = interaction.guild.get_channel(int(os.environ['APPLICATION_CATEGORY_ID']))
+        application_topic = f"{APPLICATION_TOPIC_PREFIX}{interaction.user.id}"
 
         if not age_text.isdigit() or not 1 <= int(age_text) <= 120:
-            await interaction.followup.send(
-                "Укажите настоящий возраст.",
-                ephemeral=True,
-            )
+            await interaction.followup.send("Укажите настоящий возраст.",ephemeral=True)
+            return
+        if not isinstance(category, discord.CategoryChannel):
+            await interaction.followup.send("Категория для заявок не найдена. Сообщите об этом администрации.",ephemeral=True)
+            return
+        existing_channel = next((
+                        channel
+                        for channel in category.text_channels
+                        if channel.topic == application_topic   ),None)
+        if existing_channel is not None:
+            await interaction.followup.send(f"У вас уже есть открытая заявка: {existing_channel.mention}",ephemeral=True)
             return
         
         source_key = source_values[0] if source_values else ""
         source_names = {
             "monitoring": "Бот мониторинга — сайт со списком серверов",
             "direct": "Прямое приглашение — от друга или другого пользователя",
-            "partnership": "Партнёр-Пиар — ссылка партнёрства с другим сервером",
-        }
+            "partnership": "Партнёр-Пиар — ссылка партнёрства с другим сервером"}
 
-        category = interaction.guild.get_channel(int(os.environ['APPLICATION_CATEGORY_ID']))
-        if not isinstance(category, discord.CategoryChannel):
-            await interaction.followup.send(
-                "Категория для заявок не найдена. Сообщите об этом администрации.",
-                ephemeral=True,
-            )
-            return
+        if birthday:
+            day, month = map(int, birthday.split("."))
+            async with aiosqlite.connect("birthdays.db") as db:
+                await db.execute("INSERT INTO birthdays VALUES (?, ?, ?)", (interaction.user.id, day, month))
+                await db.commit()
 
-        application_topic = f"{APPLICATION_TOPIC_PREFIX}{interaction.user.id}"
-        existing_channel = next(
-            (
-                channel
-                for channel in category.text_channels
-                if channel.topic == application_topic
-            ),
-            None,
-        )
-        if existing_channel is not None:
-            await interaction.followup.send(
-                f"У вас уже есть открытая заявка: {existing_channel.mention}",
-                ephemeral=True,
-            )
-            return
 
-        overwrites = {
-            interaction.guild.default_role: discord.PermissionOverwrite(
-                view_channel=False
-            ),
-        }
+        overwrites = {interaction.guild.default_role: discord.PermissionOverwrite(view_channel=False)}
+        
         review_role = interaction.guild.get_role(int(os.environ['REVIEW_ROLE_ID']))
         if review_role is None:
-            await interaction.followup.send(
-                "Роль модераторов не найдена. Сообщите об этом администрации.",
-                ephemeral=True,
-            )
+            await interaction.followup.send("Роль модераторов не найдена. Сообщите об этом администрации.",ephemeral=True)
             return
 
         overwrites[review_role] = discord.PermissionOverwrite(
