@@ -1,2 +1,3 @@
 .verification_answers.json
 .verification_answers.tmp
+.env
