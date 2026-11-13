@@ -109,8 +109,8 @@ async def on_ready() -> None:
         return
 
     await client.change_presence(
-        status=discord.Status.dnd,
-        activity=discord.CustomActivity(name="Проводится техническое обслуживание. Ожидайте!"),
+        status=discord.Status.online,
+        activity=discord.CustomActivity(type=discord.ActivityType.playing, name="с вашими личными портами"),
     )
 
     try:
