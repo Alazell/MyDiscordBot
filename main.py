@@ -17,7 +17,7 @@ if not os.environ['DISCORD_TOKEN']:
 
 intents = discord.Intents.all()
 intents.message_content = True
-client = discord.Client(intents=intents, activity=discord.Game(name="С вашими личными портами"))
+client = discord.Client(intents=intents, activity=discord.Game(name="ваших личных портах"))
 
 async def _setup_hook() -> None:
     client.add_view(VerificationView())
@@ -25,7 +25,7 @@ async def _setup_hook() -> None:
 client.setup_hook = _setup_hook
 
 #####################################################################
-TEST_GUILD_ID = 1017754395968012308
+TEST_GUILD_ID = 1083623196164632616
 TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
 
 tree = app_commands.CommandTree(client)
