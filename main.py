@@ -17,7 +17,7 @@ if not os.environ['DISCORD_TOKEN']:
 
 intents = discord.Intents.all()
 intents.message_content = True
-client = discord.Client(intents=intents)
+client = discord.Client(intents=intents, activity=discord.Game(name="С вашими личными портами"))
 
 async def _setup_hook() -> None:
     client.add_view(VerificationView())
@@ -107,11 +107,6 @@ async def reload_modules(interaction: discord.Interaction) -> None:
 async def on_ready() -> None:
     if client.user is None:
         return
-
-    await client.change_presence(
-        status=discord.Status.online,
-        activity=discord.CustomActivity(type=discord.ActivityType.playing, name="с вашими личными портами"),
-    )
 
     try:
         tree.clear_commands(guild=TEST_GUILD)
