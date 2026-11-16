@@ -8,6 +8,7 @@ import os
 import discord
 from discord import app_commands
 import aiosqlite
+import datetime
 load_dotenv()
 
 
@@ -259,7 +260,12 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             "partnership": "Партнёр-Пиар — ссылка партнёрства с другим сервером"}
 
         if birthday:
-            day, month = map(int, birthday.split("."))
+            day, month = map(int, birthday.strip().replace(" ", ".", "/").split("."))
+            try:
+                datetime.datetime(2024, month, day)
+            except ValueError:
+                interaction.response.send_message("Вы неверно ввели значение для пятого вопроса. Попробуйте формат 'ММ.ДД'")
+                return
             async with aiosqlite.connect("birthdays.db") as db:
                 await db.execute("INSERT INTO birthdays VALUES (?, ?, ?)" "ON CONFLICT(user_id) DO UPDATE SET day = ?, month = ?", (interaction.user.id, day, month, day, month))
                 await db.commit()
