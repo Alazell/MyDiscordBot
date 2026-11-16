@@ -34,8 +34,9 @@ async def set_birthday(interaction: discord.Interaction, member: discord.Member 
         async def on_submit(self, interaction: discord.Interaction) -> None:
             day, month = map(int, self.Date_Input.component.value.strip().split("."))
             async with aiosqlite.connect("birthdays.db") as db:
-                await db.execute("INSERT INTO birthdays VALUES (?, ?, ?)", (interaction.user.id, day, month))
+                await db.execute("INSERT INTO birthdays VALUES (?, ?, ?)" "ON CONFLICT(user_id) DO UPDATE SET day = ?, month = ?", (interaction.user.id, day, month, day, month))
                 await db.commit()
+                await interaction.response.send_message("Дата успешно изменена", ephemeral=True)
     class ChangeBirthdayView(discord.ui.View):
             def __init__(self, target_id: int):
                 super().__init__(timeout=120)

@@ -261,7 +261,7 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
         if birthday:
             day, month = map(int, birthday.split("."))
             async with aiosqlite.connect("birthdays.db") as db:
-                await db.execute("INSERT INTO birthdays VALUES (?, ?, ?)", (interaction.user.id, day, month))
+                await db.execute("INSERT INTO birthdays VALUES (?, ?, ?)" "ON CONFLICT(user_id) DO UPDATE SET day = ?, month = ?", (interaction.user.id, day, month, day, month))
                 await db.commit()
 
 
