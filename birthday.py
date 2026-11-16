@@ -32,11 +32,17 @@ async def set_birthday(interaction: discord.Interaction, member: discord.Member 
                 min_length=5,
                 max_length=5))
         async def on_submit(self, interaction: discord.Interaction) -> None:
-            day, month = map(int, self.Date_Input.component.value.strip().split("."))
+            day, month = map(int, self.Date_Input.component.value.strip().replace(" ", ".", "/").split("."))
+            try:
+                 datetime.datetime(2024, month, day)
+            except ValueError:
+                 interaction.response.send_message("Вы неверно ввели значение. Попробуйте формат 'ММ.ДД'")
+                 return
             async with aiosqlite.connect("birthdays.db") as db:
                 await db.execute("INSERT INTO birthdays VALUES (?, ?, ?)" "ON CONFLICT(user_id) DO UPDATE SET day = ?, month = ?", (interaction.user.id, day, month, day, month))
                 await db.commit()
                 await interaction.response.send_message("Дата успешно изменена", ephemeral=True)
+
     class ChangeBirthdayView(discord.ui.View):
             def __init__(self, target_id: int):
                 super().__init__(timeout=120)
