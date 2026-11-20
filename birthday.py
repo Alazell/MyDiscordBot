@@ -2,6 +2,8 @@ import aiosqlite
 import discord
 from discord import app_commands
 import datetime
+import os
+import logging
 
 async def init_db() -> int:
     async with aiosqlite.connect("birthdays.db") as db:
@@ -70,11 +72,11 @@ async def set_birthday(interaction: discord.Interaction, member: discord.Member 
         day, month = int(row[0]), int(row[1])
 
     now = datetime.datetime.now()
-    today = now.replace(month=month, day=day) #день рождения в этом году
-    if today > now: next=today
-    elif today == now.replace(hour=now.hour, minute=now.minute, second=now.second, microsecond=0): next=now
+    today = now.replace(month=month, day=day, hour=0, minute=0, second=0) #день рождения в этом году
+    if today.date() == now.date(): next=now
+    elif today > now: next=today
     else:
-        try: next = now.replace(year=now.year+1, month=month, day=day)
+        try: next = now.replace(year=now.year+1, month=month, day=day, hour=0, minute=0, second=0, microsecond=0)
         except ValueError: next = datetime.datetime(now.year+1, 3, 1)
     delta = next-now
     if int(delta.total_seconds()) == 0: count_day, count_hour, count_min, count_sec = 0,0,0,0
@@ -93,3 +95,61 @@ async def set_birthday(interaction: discord.Interaction, member: discord.Member 
         .set_author(name=target.name, url=f'https://discord.com/users/{target.id}', icon_url=target.display_avatar.url)
         .set_footer(text= 'Совершили ошибку? ↙Введите новое значение по кнопке!'),
         view=ChangeBirthdayView(target.id))
+
+async def sync_birthday_roles(client: discord.Client) -> None:
+    logger = logging.getLogger(__name__)
+    raw_role_id = os.getenv("BIRTHDAY_ROLE_ID", "").strip()
+    try:
+        role_id = int(raw_role_id)
+        if role_id <= 0: raise ValueError
+    except ValueError:
+        logger.error("BIRTHDAY_ROLE_ID отсутствует или содержит неверный ID")
+        return
+
+    # ID роли определяет сервер, на котором задача работает с участниками.
+    guild = None
+    role = None
+
+    for candidate in client.guilds:
+        if candidate.unavailable: continue
+        candidate_role = candidate.get_role(role_id)
+        if candidate_role is not None:
+            guild = candidate
+            role = candidate_role
+            break
+
+    if guild is None or role is None:
+        logger.warning("Роль %s не найдена на доступных серверах", role_id)
+        return
+    if role.is_default() or role.managed:
+        logger.error("Роль %s нельзя использовать для дней рождения", role_id)
+        return
+
+    async with aiosqlite.connect("file:birthdays.db?mode=ro", uri=True) as db:
+        async with db.execute("SELECT user_id, day, month FROM birthdays") as cursor: rows = await cursor.fetchall()
+    today = datetime.date.today()
+
+    for user_id, raw_day, raw_month in rows:
+        try:
+            user_id = int(user_id)
+            day = int(raw_day)
+            month = int(raw_month)
+            if user_id <= 0: raise ValueError
+            datetime.date(2000, month, day) # 2000 год високосный: проверка допускает 29 февраля.
+        except (TypeError, ValueError, OverflowError):
+            logger.warning("Некорректная дата для user_id=%r", user_id)
+            continue
+
+        if month == 2 and day == 29:
+            try:birthday_this_year = datetime.date(today.year, 2, 29)
+            except ValueError: birthday_this_year = datetime.date(today.year, 3, 1)
+        else: birthday_this_year = datetime.date(today.year, month, day)
+        should_have_role = today == birthday_this_year
+        try: # Получаем участника через API, а не только из кэша.
+            member = await guild.fetch_member(user_id)
+            has_role = role in member.roles
+
+            if should_have_role and not has_role: await member.add_roles(role, reason="День рождения")
+            elif not should_have_role and has_role: await member.remove_roles(role, reason="День рождения закончился")
+        except discord.NotFound: logger.info("Объект Discord не найден для user_id=%s", user_id)
+        except discord.HTTPException: logger.exception("Не удалось обновить роль для user_id=%s", user_id)

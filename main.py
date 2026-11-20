@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import discord
 import importlib
 from discord import app_commands
+from discord.ext import tasks
 load_dotenv()
 
 if not os.environ['DISCORD_TOKEN']:
@@ -18,12 +19,16 @@ if not os.environ['DISCORD_TOKEN']:
 intents = discord.Intents.all()
 intents.message_content = True
 client = discord.Client(intents=intents, activity=discord.CustomActivity(name="*Сладко прилизывается, подстраиваясь над вашими метаданными*"))
-
 async def _setup_hook() -> None:
     client.add_view(VerificationView())
     client.add_view(ApplicationReviewView())
 client.setup_hook = _setup_hook
 
+#####################################################################
+@tasks.loop(hours=1)
+async def birthday_role_task() -> None:
+    try: await birthday.sync_birthday_roles(client)
+    except Exception as e: import logging; logging.exception(f"Ошибка синхронизации ролей дня рождения: {e}")
 #####################################################################
 TEST_GUILD_ID = 1083623196164632616
 TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
@@ -33,7 +38,6 @@ class DebugGroup(discord.app_commands.Group):
     def __init__(self):
         super().__init__(name="debug", description="Отладочные команды проекта")
 debug_group = DebugGroup()
-
 #####################################################################
 @app_commands.command(name="ping", description="Проверить задержку бота")
 async def ping(interaction: discord.Interaction):
@@ -101,33 +105,27 @@ async def reload_modules(interaction: discord.Interaction) -> None:
             if len(message) > 2000 and split_at > 0: chunk = message[:split_at]
             await interaction.followup.send(chunk, ephemeral=False)
             message = message[len(chunk):].lstrip("\n")
-
 #####################################################################
 @client.event
 async def on_ready() -> None:
-    if client.user is None:
-        return
-
+    if client.user is None: return
     try:
         tree.clear_commands(guild=TEST_GUILD)
         await tree.sync(guild=TEST_GUILD)
-
         synced = await tree.sync()
         print(f"Синхронизировано команд: {len(synced)}")
         print([(command.name, command.id) for command in synced])
-    except Exception as error:
-        print(f"Ошибка синхронизации команд: {error}")
+    except Exception as error: print(f"Ошибка синхронизации команд: {error}")
 
     try:
         count = await birthday.init_db()
         print(f'birthdays.db загружен и имеет {count} пользователей в списке.')
-    except Exception as error:
-        print(f'Возникла ошибка при загрузке birthdays.db: {error}')
-
+    except Exception as error: print(f'Возникла ошибка при загрузке birthdays.db: {error}')
+    else: 
+        if not birthday_role_task.is_running(): birthday_role_task.start()
+    
     print(f"Discord-бот запущен как {client.user}")
     print('Статус профиля: "Я существую"')
-
-
 
 debug_group.add_command(send_verification_embed)
 debug_group.add_command(reload_modules)
