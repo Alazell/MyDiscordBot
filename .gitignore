@@ -3,3 +3,4 @@
 .env
 __pycache__/verification.cpython-313.pyc
 __pycache__/birthday.cpython-313.pyc
+birthdays.db
