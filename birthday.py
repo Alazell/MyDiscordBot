@@ -1,7 +1,7 @@
 import aiosqlite
 import discord
 from discord import app_commands
-from datetime import datetime
+import datetime
 
 async def init_db() -> int:
     async with aiosqlite.connect("birthdays.db") as db:
@@ -14,8 +14,6 @@ async def init_db() -> int:
         async with db.execute("SELECT COUNT(user_id) FROM birthdays") as cursor:
             (count,) = await cursor.fetchone()
     return count
-
-
 
 @app_commands.command(name="дата-рождения", description="Проверяет/изменяет дату рождения тебя/участника")
 async def set_birthday(interaction: discord.Interaction, member: discord.Member = None):
@@ -32,12 +30,12 @@ async def set_birthday(interaction: discord.Interaction, member: discord.Member 
                 min_length=5,
                 max_length=5))
         async def on_submit(self, interaction: discord.Interaction) -> None:
-            day, month = map(int, self.Date_Input.component.value.strip().replace(" ", ".", "/").split("."))
             try:
-                 datetime.datetime(2024, month, day)
+                day, month = map(int, self.Date_Input.component.value.strip().split("."))
+                datetime.datetime(datetime.datetime.now().year, month, day)
             except ValueError:
-                 interaction.response.send_message("Вы неверно ввели значение. Попробуйте формат 'ММ.ДД'")
-                 return
+                await interaction.response.send_message("Неверная дата. Используйте формат ДД.ММ и убедитесь в существовании самой даты", ephemeral=True)
+                return
             async with aiosqlite.connect("birthdays.db") as db:
                 await db.execute("INSERT INTO birthdays VALUES (?, ?, ?)" "ON CONFLICT(user_id) DO UPDATE SET day = ?, month = ?", (interaction.user.id, day, month, day, month))
                 await db.commit()
@@ -71,13 +69,13 @@ async def set_birthday(interaction: discord.Interaction, member: discord.Member 
                 return
         day, month = int(row[0]), int(row[1])
 
-    now = datetime.now()
+    now = datetime.datetime.now()
     today = now.replace(month=month, day=day) #день рождения в этом году
     if today > now: next=today
     elif today == now.replace(hour=now.hour, minute=now.minute, second=now.second, microsecond=0): next=now
     else:
         try: next = now.replace(year=now.year+1, month=month, day=day)
-        except ValueError: next = datetime(now.year+1, 3, 1)
+        except ValueError: next = datetime.datetime(now.year+1, 3, 1)
     delta = next-now
     if int(delta.total_seconds()) == 0: count_day, count_hour, count_min, count_sec = 0,0,0,0
     else:

@@ -260,11 +260,11 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             "partnership": "Партнёр-Пиар — ссылка партнёрства с другим сервером"}
 
         if birthday:
-            day, month = map(int, birthday.strip().replace(" ", ".", "/").split("."))
             try:
-                datetime.datetime(2024, month, day)
+                day, month = map(int, birthday.strip().replace(" ", ".").split("."))
+                datetime.datetime(datetime.datetime.now().year, month, day)
             except ValueError:
-                interaction.response.send_message("Вы неверно ввели значение для пятого вопроса. Попробуйте формат 'ММ.ДД'")
+                await interaction.followup.send(content="Вы неверно ввели значение для пятого вопроса. Используйте формат ДД.ММ и убедитесь в существовании самой даты", ephemeral=True)
                 return
             async with aiosqlite.connect("birthdays.db") as db:
                 await db.execute("INSERT INTO birthdays VALUES (?, ?, ?)" "ON CONFLICT(user_id) DO UPDATE SET day = ?, month = ?", (interaction.user.id, day, month, day, month))
