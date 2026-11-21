@@ -1,6 +1,3 @@
-.verification_answers.json
-.verification_answers.tmp
 .env
-__pycache__/verification.cpython-313.pyc
-__pycache__/birthday.cpython-313.pyc
-birthdays.db
+__pycache__/
+*.db
