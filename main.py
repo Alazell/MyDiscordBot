@@ -20,21 +20,17 @@ async def _setup_hook() -> None:
     client.add_view(VerificationView())
     client.add_view(ApplicationReviewView())
 client.setup_hook = _setup_hook
+TEST_GUILD_ID = 1083623196164632616
+TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
+tree = app_commands.CommandTree(client)
+DebugGroup = app_commands.Group(name="debug", description="Отладочные команды проекта")
+DebugGroup.add_command(send_verification_embed)
 
 #####################################################################
 @tasks.loop(hours=1)
 async def birthday_role_task() -> None:
     try: await birthday.sync_birthday_roles(client)
     except Exception as e: import logging; logging.exception(f"Ошибка синхронизации ролей дня рождения: {e}")
-#####################################################################
-TEST_GUILD_ID = 1083623196164632616
-TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
-
-tree = app_commands.CommandTree(client)
-class DebugGroup(discord.app_commands.Group):
-    def __init__(self):
-        super().__init__(name="debug", description="Отладочные команды проекта")
-debug_group = DebugGroup()
 #####################################################################
 @app_commands.command(name="ping", description="Проверить задержку бота")
 async def ping(interaction: discord.Interaction):
@@ -47,7 +43,6 @@ async def ping(interaction: discord.Interaction):
     await interaction.followup.send(
         f"🔄 Бот ответил за {response_time} мс\n"
         f"📶 WebSocket задержка: {websocket_latency} мс")
-
 #####################################################################
 @client.event
 async def on_ready() -> None:
@@ -70,8 +65,9 @@ async def on_ready() -> None:
     print(f"Discord-бот запущен как {client.user}")
     print('Статус профиля: "Я существую"')
 
-debug_group.add_command(send_verification_embed)
-tree.add_command(debug_group)
+tree.add_command(DebugGroup)
+from jun_commands import emote
+tree.add_command(emote)
 tree.add_command(ping)
 tree.add_command(birthday.set_birthday)
 if __name__ == "__main__":
