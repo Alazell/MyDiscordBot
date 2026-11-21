@@ -34,7 +34,7 @@ async def set_birthday(interaction: discord.Interaction, member: discord.Member 
         async def on_submit(self, interaction: discord.Interaction) -> None:
             try:
                 day, month = map(int, self.Date_Input.component.value.strip().split("."))
-                datetime.datetime(datetime.datetime.now().year, month, day)
+                datetime.datetime(2000, month, day)
             except ValueError:
                 await interaction.response.send_message("Неверная дата. Используйте формат ДД.ММ и убедитесь в существовании самой даты", ephemeral=True)
                 return
@@ -72,7 +72,8 @@ async def set_birthday(interaction: discord.Interaction, member: discord.Member 
         day, month = int(row[0]), int(row[1])
 
     now = datetime.datetime.now()
-    today = now.replace(month=month, day=day, hour=0, minute=0, second=0) #день рождения в этом году
+    try: today = now.replace(month=month, day=day, hour=0, minute=0, second=0) #день рождения в этом году
+    except ValueError: today = datetime.datetime(now.year, 3, 1)
     if today.date() == now.date(): next=now
     elif today > now: next=today
     else:

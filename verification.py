@@ -261,8 +261,8 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
 
         if birthday:
             try:
-                day, month = map(int, birthday.strip().replace(" ", ".").split("."))
-                datetime.datetime(datetime.datetime.now().year, month, day)
+                day, month = map(int, birthday.strip().replace(" ", ".").replace("/", ".").split("."))
+                datetime.datetime(2000, month, day)
             except ValueError:
                 await interaction.followup.send(content="Вы неверно ввели значение для пятого вопроса. Используйте формат ДД.ММ и убедитесь в существовании самой даты", ephemeral=True)
                 return
