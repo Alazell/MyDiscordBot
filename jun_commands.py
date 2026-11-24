@@ -1,5 +1,6 @@
 import discord
 from discord import app_commands
+from discord.ext import commands
 
 EMOTES: dict[str, str] = {
     "трусы": '{user} *Тихо и незаметно подкрадывается со спины к* {text}  *а затем быстрым неуловимым движением стаскивает трусы и убегает с ними в даль весело хохоча.* ***-теперь они мои*** <:SylveonSmug1:1114423914551066674>',
@@ -40,9 +41,10 @@ async def emote_autocomplete(interaction: discord.Interaction, current: str) -> 
             for name in EMOTES
             if current in name.lower()][:25]
 
-@app_commands.command(name="emote", description="Использовать эмоут")
+@commands.hybrid_command(name="emote", description="Использовать эмоут")
 @app_commands.autocomplete(emote=emote_autocomplete)
-async def emote(interaction: discord.Interaction, emote: str = "", text: str = ""):
+async def emote(ctx: commands.Context, emote: str = "", *, text: str = ""):
+    ephemeral = ctx.interaction is not None
     template = EMOTES.get(emote)
     if template is None:
         names = list(EMOTES.keys())
@@ -51,12 +53,11 @@ async def emote(interaction: discord.Interaction, emote: str = "", text: str = "
             embed.add_field(name=" ",
                             value="\n".join(names[i:i +5]),
                             inline=True)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=ephemeral)
         return
     elif text == "":
-        await interaction.response.send_message(embed=discord.Embed(title="Обзор шаблона",
-                                                                    description=f"{template.format(user=interaction.user.mention, text='<text>')}",
-                                                                    color=discord.Colour.from_str('#0071ff')), ephemeral=True)
-        return
+        await ctx.send(embed=discord.Embed(title="Обзор шаблона",
+                                           description=f"{template.format(user=ctx.author.mention, text='<text>')}",
+                                           color=discord.Colour.from_str('#0071ff')), ephemeral=ephemeral)
     else:
-        await interaction.response.send_message(template.format(user=interaction.user.mention, text=text))
+        await ctx.send(template.format(user=ctx.author.mention, text=text))
