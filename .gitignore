@@ -1,3 +1,5 @@
 .env
 __pycache__/
 *.db
+.verification_answers.json
+.verification_answers.tmp

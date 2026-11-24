@@ -16,7 +16,6 @@ ANSWER_STORE = Path(__file__).with_name(".verification_answers.json")
 APPLICATION_TOPIC_PREFIX = "verification_application:"
 INVITE_SNAPSHOTS: dict[int, dict[str, int]] = {}
 
-
 def _load_previous_answers() -> dict[str, dict[str, str]]:
     """Прочитать сохранённые ответы или вернуть пустой словарь при ошибке чтения."""
     try:
@@ -26,15 +25,12 @@ def _load_previous_answers() -> dict[str, dict[str, str]]:
         return {}
 
     return data if isinstance(data, dict) else {}
-
 def _channel_name(member: discord.Member) -> str:
     """Сформировать имя канала заявки из имени участника длиной до 100 символов."""
     display_name = member.nick or member.name
     safe_name = re.sub(r"[^\w-]+", "-", display_name, flags=re.UNICODE)
     safe_name = safe_name.strip("-_").lower() or str(member.id)
     return f"заявка-{safe_name}"[:100]
-
-
 def _applicant_id(channel: discord.TextChannel) -> int | None:
     """Извлечь ID заявителя из темы канала или вернуть None при неверном формате."""
     topic = channel.topic or ""
@@ -45,15 +41,10 @@ def _applicant_id(channel: discord.TextChannel) -> int | None:
         return int(topic.removeprefix(APPLICATION_TOPIC_PREFIX))
     except ValueError:
         return None
-
-
 def _has_review_role(interaction: discord.Interaction) -> bool:
     """Проверить наличие роли модератора верификации у автора взаимодействия."""
     return isinstance(interaction.user, discord.Member) and any(
-        role.id == int(os.environ['REVIEW_ROLE_ID']) for role in interaction.user.roles
-    )
-
-
+        role.id == int(os.environ['REVIEW_ROLE_ID']) for role in interaction.user.roles)
 async def _set_conversation_access(
     channel: discord.TextChannel,
     applicant: discord.Member,
@@ -79,8 +70,6 @@ async def _set_conversation_access(
             attach_files=True)
     else:
         await channel.set_permissions(applicant, overwrite=None)
-
-
 async def _lock_application(
     channel: discord.TextChannel,
     applicant: discord.Member | None,
@@ -94,8 +83,6 @@ async def _lock_application(
             send_messages=False)
     if applicant is not None:
         await channel.set_permissions(applicant, overwrite=None)
-
-
 async def _render_transcript(channel: discord.TextChannel) -> str:
     messages = [
         message async for message in channel.history(limit=None, oldest_first=True)
@@ -156,8 +143,6 @@ async def _render_transcript(channel: discord.TextChannel) -> str:
         f"{''.join(rendered_messages)}"
         "</main></body></html>"
     )
-
-
 class VerificationModal(discord.ui.Modal, title="Заявка на верификацию"):
     question_1 = discord.ui.Label(
         text="1. Как вы относитесь к фурри? :p",
@@ -367,8 +352,6 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             f"Заявка создана: {application_channel.mention}",
             ephemeral=True,
         )
-
-
 class VerificationView(discord.ui.View):
     def __init__(self) -> None:
         super().__init__(timeout=None)
@@ -387,8 +370,6 @@ class VerificationView(discord.ui.View):
         await interaction.response.send_modal(
             VerificationModal()
         )
-
-
 class ClosureReasonModal(discord.ui.Modal, title="Причина"):
     reason = discord.ui.TextInput(
         label="Причина",
@@ -516,8 +497,6 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
             f"Заявка обработана: {self.status}. Транскрипт отправлен в журнал.",
             ephemeral=True,
         )
-
-
 class ApplicationReviewView(discord.ui.View):
     def __init__(self, *, question_disabled: bool = False):
         super().__init__(timeout=None)
@@ -613,39 +592,34 @@ class ApplicationReviewView(discord.ui.View):
             ephemeral=True,
         )
 
-
 # Команда отладки для отправки embed-сообщения верификации
 @app_commands.command(name="verification_embed", description="Отправить embed для подачи заявки на верификацию")
 async def send_verification_embed(interaction: discord.Interaction):
     if interaction.user.id != int(os.environ['DEBUG_OWNER_ID']):
         await interaction.response.send_message(
             "Эта debug-команда доступна только владельцу проекта.",
-            ephemeral=True,
-        )
+            ephemeral=True)
         return
-    
     embed = discord.Embed(
-    title="Точка верификации",
-    description=("""
-    Поздравляем!
-    Вы были приглашены на этот закрытый сервер с проверенно-взрослыми фырками разных вкусов и характеров.
-    Для последующего общения на сервере, вам, как и полагается, необходимо пройти простой опросник.
-    Опросник читают живые люди, администраторы, потому время принятия может розниться.
-    В случае если к вам возникнут вопросы - вас вызовут.
-    
-    Приятного времяпровождения!"""),
-    color=13401344)
+        title="Точка верификации",
+        description=("""
+        Поздравляем!
+        Вы были приглашены на этот закрытый сервер с проверенно-взрослыми фырками разных вкусов и характеров.
+        Для последующего общения на сервере, вам, как и полагается, необходимо пройти простой опросник.
+        Опросник читают живые люди, администраторы, потому время принятия может розниться.
+        В случае если к вам возникнут вопросы - вас вызовут.
+        Приятного времяпровождения!"""),
+        color=13401344)
     embed.set_author(
-    name="Horny Club",
-    icon_url="https://cdn.discordapp.com/icons/1083623196164632616/12e253dcd6b354a20218193c7849ebff.webp?size=1024")
+        name="Horny Club",
+        icon_url="https://cdn.discordapp.com/icons/1083623196164632616/12e253dcd6b354a20218193c7849ebff.webp?size=1024")
     embed.set_thumbnail(
-    url="https://i.pinimg.com/736x/22/05/b8/2205b85e6ee1a84401729f80115ca54e.jpg")
+        url="https://i.pinimg.com/736x/22/05/b8/2205b85e6ee1a84401729f80115ca54e.jpg")
     embed.set_footer(
-    text="- .Alazell.              Если есть идеи - подавайте их мне.",
-    icon_url="https://cdn.discordapp.com/avatars/626052608074711040/a4a7338b3faf52101ebfdb7d57360e92.webp?size=1024")
+        text="- .Alazell.              Если есть идеи - подавайте их мне.",
+        icon_url="https://cdn.discordapp.com/avatars/626052608074711040/a4a7338b3faf52101ebfdb7d57360e92.webp?size=1024")
     # Отправляем сообщение
     await interaction.response.send_message(
         embed=embed,
         view=VerificationView(),
-        ephemeral=False
-    )
+        ephemeral=False)

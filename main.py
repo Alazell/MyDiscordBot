@@ -5,7 +5,7 @@ import birthday
 from dotenv import load_dotenv
 import discord
 from discord import app_commands
-from discord.ext import tasks
+from discord.ext import tasks, commands
 load_dotenv()
 
 if not os.environ['DISCORD_TOKEN']:
@@ -13,16 +13,15 @@ if not os.environ['DISCORD_TOKEN']:
         "DISCORD_TOKEN is not configured."
     )
 
-intents = discord.Intents.all()
-intents.message_content = True
-client = discord.Client(intents=intents, activity=discord.CustomActivity(name="*Сладко прилизывается, подстраиваясь над вашими метаданными*"))
+client = commands.Bot(intents=discord.Intents.all(),
+                      activity=discord.CustomActivity(name="*Сладко прилизывается, подстраиваясь над вашими метаданными*"),
+                      command_prefix=commands.when_mentioned_or('$'))
 async def _setup_hook() -> None:
     client.add_view(VerificationView())
     client.add_view(ApplicationReviewView())
 client.setup_hook = _setup_hook
 TEST_GUILD_ID = 1083623196164632616
 TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
-tree = app_commands.CommandTree(client)
 DebugGroup = app_commands.Group(name="debug", description="Отладочные команды проекта")
 DebugGroup.add_command(send_verification_embed)
 
@@ -48,9 +47,9 @@ async def ping(interaction: discord.Interaction):
 async def on_ready() -> None:
     if client.user is None: return
     try:
-        tree.clear_commands(guild=TEST_GUILD)
-        await tree.sync(guild=TEST_GUILD)
-        synced = await tree.sync()
+        client.tree.clear_commands(guild=TEST_GUILD)
+        await client.tree.sync(guild=TEST_GUILD)
+        synced = await client.tree.sync()
         print(f"Синхронизировано команд: {len(synced)}")
         print([(command.name, command.id) for command in synced])
     except Exception as error: print(f"Ошибка синхронизации команд: {error}")
@@ -65,10 +64,11 @@ async def on_ready() -> None:
     print(f"Discord-бот запущен как {client.user}")
     print('Статус профиля: "Я существую"')
 
-tree.add_command(DebugGroup)
+client.tree.add_command(DebugGroup)
 from jun_commands import emote
-tree.add_command(emote)
-tree.add_command(ping)
-tree.add_command(birthday.set_birthday)
+client.tree.add_command(emote)
+client.tree.add_command(ping)
+client.tree.add_command(birthday.set_birthday)
+
 if __name__ == "__main__":
     client.run(os.environ['DISCORD_TOKEN'])
