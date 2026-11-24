@@ -72,6 +72,7 @@ async def help_command(ctx: commands.Context) -> None:
     if current: values.append(current)
     for value in values: embed.add_field(name="\u200b", value=value, inline=False)
     try: await ctx.send(embed=embed)
+    except discord.Forbidden: ctx.send(content='У приложения нету прав отправить это сообщение. вы не дали право на вложения?')
     except Exception: logging.exception("Не удалось отправить embed help")
 
 #####################################################################
