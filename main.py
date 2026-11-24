@@ -2,10 +2,11 @@ import os
 import time
 from verification import ApplicationReviewView, VerificationView, send_verification_embed
 import birthday
+from jun_commands import emote
 from dotenv import load_dotenv
 import discord
-from discord import app_commands
 from discord.ext import tasks, commands
+import logging
 load_dotenv()
 
 if not os.environ['DISCORD_TOKEN']:
@@ -16,43 +17,53 @@ if not os.environ['DISCORD_TOKEN']:
 client = commands.Bot(intents=discord.Intents.all(),
                       activity=discord.CustomActivity(name="*Сладко прилизывается, подстраиваясь над вашими метаданными*"),
                       command_prefix=commands.when_mentioned_or('$'))
-async def _setup_hook() -> None:
-    client.add_view(VerificationView())
-    client.add_view(ApplicationReviewView())
-client.setup_hook = _setup_hook
+
 TEST_GUILD_ID = 1083623196164632616
 TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
-DebugGroup = app_commands.Group(name="debug", description="Отладочные команды проекта")
+#####################################################################
+@commands.hybrid_group(name="debug", description="Отладочные команды проекта")
+async def DebugGroup(ctx: commands.Context) -> None:
+    pass
 DebugGroup.add_command(send_verification_embed)
+#####################################################################
+@commands.hybrid_command(name="ping", description="Проверить задержку бота")
+async def ping(ctx: commands.Context):
+    start_time = time.monotonic()
+    await ctx.send("🏓 Проверяю задержку...")
+    end_time = time.monotonic()
+    response_time = round((end_time - start_time) * 1000)
+    websocket_latency = round(client.latency * 1000)
 
+    await ctx.send(
+        f"🔄 Бот ответил за {response_time} мс\n"
+        f"📶 WebSocket задержка: {websocket_latency} мс")
 #####################################################################
 @tasks.loop(hours=1)
 async def birthday_role_task() -> None:
     try: await birthday.sync_birthday_roles(client)
     except Exception as e: import logging; logging.exception(f"Ошибка синхронизации ролей дня рождения: {e}")
-#####################################################################
-@app_commands.command(name="ping", description="Проверить задержку бота")
-async def ping(interaction: discord.Interaction):
-    start_time = time.monotonic()
-    await interaction.response.send_message("🏓 Проверяю задержку...")
-    end_time = time.monotonic()
-    response_time = round((end_time - start_time) * 1000)
-    websocket_latency = round(client.latency * 1000)
+async def _setup_hook() -> None:
+    client.add_view(VerificationView())
+    client.add_view(ApplicationReviewView())
 
-    await interaction.followup.send(
-        f"🔄 Бот ответил за {response_time} мс\n"
-        f"📶 WebSocket задержка: {websocket_latency} мс")
+    client.add_command(DebugGroup)
+    client.add_command(emote)
+    client.add_command(ping)
+    client.add_command(birthday.set_birthday)
+
+    try:
+        synced = await client.tree.sync()
+        print(f"Синхронизировано команд: {len(synced)}")
+        for cmd in client.tree.get_commands():
+            print(f"  {cmd.name} -> {[s.name for s in getattr(cmd, 'commands', [])]}")
+    except discord.HTTPException:
+        logging.exception("Глобальный синк не удался — бот работает, команды на стороне Discord не обновлены")
+client.setup_hook = _setup_hook
+
 #####################################################################
 @client.event
 async def on_ready() -> None:
     if client.user is None: return
-    try:
-        client.tree.clear_commands(guild=TEST_GUILD)
-        await client.tree.sync(guild=TEST_GUILD)
-        synced = await client.tree.sync()
-        print(f"Синхронизировано команд: {len(synced)}")
-        print([(command.name, command.id) for command in synced])
-    except Exception as error: print(f"Ошибка синхронизации команд: {error}")
 
     try:
         count = await birthday.init_db()
@@ -62,13 +73,6 @@ async def on_ready() -> None:
         if not birthday_role_task.is_running(): birthday_role_task.start()
     
     print(f"Discord-бот запущен как {client.user}")
-    print('Статус профиля: "Я существую"')
-
-client.tree.add_command(DebugGroup)
-from jun_commands import emote
-client.tree.add_command(emote)
-client.tree.add_command(ping)
-client.tree.add_command(birthday.set_birthday)
 
 if __name__ == "__main__":
     client.run(os.environ['DISCORD_TOKEN'])

@@ -7,6 +7,7 @@ from pathlib import Path
 import os
 import discord
 from discord import app_commands
+from discord.ext import commands
 import aiosqlite
 import datetime
 load_dotenv()
@@ -593,10 +594,10 @@ class ApplicationReviewView(discord.ui.View):
         )
 
 # Команда отладки для отправки embed-сообщения верификации
-@app_commands.command(name="verification_embed", description="Отправить embed для подачи заявки на верификацию")
-async def send_verification_embed(interaction: discord.Interaction):
-    if interaction.user.id != int(os.environ['DEBUG_OWNER_ID']):
-        await interaction.response.send_message(
+@commands.hybrid_command(name="verification_embed", description="Отправить embed для подачи заявки на верификацию")
+async def send_verification_embed(ctx: commands.Context):
+    if ctx.author.id != int(os.environ['DEBUG_OWNER_ID']):
+        await ctx.send(
             "Эта debug-команда доступна только владельцу проекта.",
             ephemeral=True)
         return
@@ -619,7 +620,4 @@ async def send_verification_embed(interaction: discord.Interaction):
         text="- .Alazell.              Если есть идеи - подавайте их мне.",
         icon_url="https://cdn.discordapp.com/avatars/626052608074711040/a4a7338b3faf52101ebfdb7d57360e92.webp?size=1024")
     # Отправляем сообщение
-    await interaction.response.send_message(
-        embed=embed,
-        view=VerificationView(),
-        ephemeral=False)
+    await ctx.send(embed=embed, view=VerificationView())
