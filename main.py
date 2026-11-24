@@ -12,7 +12,8 @@ load_dotenv()
 if not os.environ['DISCORD_TOKEN']: raise RuntimeError("DISCORD_TOKEN is not configured.")
 client = commands.Bot(intents=discord.Intents.all(),
                       activity=discord.CustomActivity(name="*Сладко прилизывается, подстраиваясь над вашими метаданными*"),
-                      command_prefix=commands.when_mentioned_or('$'))
+                      command_prefix=commands.when_mentioned_or('$'),
+                      help_command=None)
 TEST_GUILD_ID = 1083623196164632616
 TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
 #####################################################################
@@ -32,6 +33,47 @@ async def ping(ctx: commands.Context):
     await ctx.send(
         f"🔄 Бот ответил за {response_time} мс\n"
         f"📶 WebSocket задержка: {websocket_latency} мс")
+
+@commands.hybrid_command(name="help", description="Показать список доступных команд бота")
+async def help_command(ctx: commands.Context) -> None:
+    try: prefixes = await client.get_prefix(ctx.message); prefix = prefixes[-1] if isinstance(prefixes, list) and prefixes else (prefixes or "$")
+    except Exception: prefix = "Отсутствует / Не определено"
+    embed = discord.Embed(
+        title="Список доступных команд",
+        description=f'''Префикс — `{prefix}`
+                        либо слеш — `/`
+                        либо упоминание — {client.user.mention if client.user else ''}''',
+        colour=discord.Colour.blurple())
+    lines: list[str] = []
+    for cmd in sorted(client.commands, key=lambda c: c.name):
+        if cmd.name == "help": continue
+        desc = (cmd.description or cmd.brief or cmd.help or "описание не задано").strip().splitlines()[0]
+        sig = str(cmd.signature).strip()
+        sig_part = f" `{sig}`" if sig else ""
+        if isinstance(cmd, commands.Group):
+            lines.append(f"> **{cmd.name}**{sig_part}")
+            lines.append(f"> -# {desc}")
+            for sub in sorted(cmd.commands, key=lambda c: c.name):
+                sub_sig = str(sub.signature).strip()
+                sub_desc = (sub.description or sub.brief or sub.help or "описание не задано").strip().splitlines()[0]
+                sub_sig_part = f" `{sub_sig}`" if sub_sig else ""
+                lines.append(f"> - **{sub.name}**{sub_sig_part}")
+                lines.append(f">   -# {sub_desc}")
+        else:
+            lines.append(f"- **{cmd.name}**{sig_part}")
+            lines.append(f"  -# {desc}")
+    values: list[str] = []
+    current = ""
+    for line in lines:
+        if current and len(current) + len(line) + 1 > 1000:
+            values.append(current)
+            current = ""
+        current = f"{current}\n{line}" if current else line
+    if current: values.append(current)
+    for value in values: embed.add_field(name="\u200b", value=value, inline=False)
+    try: await ctx.send(embed=embed)
+    except Exception: logging.exception("Не удалось отправить embed help")
+
 #####################################################################
 @tasks.loop(hours=1)
 async def birthday_role_task() -> None:
@@ -45,6 +87,7 @@ async def _setup_hook() -> None:
     client.add_command(emote)
     client.add_command(ping)
     client.add_command(birthday.set_birthday)
+    client.add_command(help_command)
 
     try:
         synced = await client.tree.sync()
