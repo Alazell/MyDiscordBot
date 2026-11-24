@@ -6,6 +6,7 @@ from jun_commands import emote
 from dotenv import load_dotenv
 import discord
 from discord.ext import tasks, commands
+import logging
 load_dotenv()
 
 if not os.environ['DISCORD_TOKEN']:
@@ -49,11 +50,14 @@ async def _setup_hook() -> None:
     client.add_command(emote)
     client.add_command(ping)
     client.add_command(birthday.set_birthday)
-    
-    synced = await client.tree.sync()
-    print(f"Синхронизировано команд: {len(synced)}")
-    for cmd in client.tree.get_commands():
-        print(f"  {cmd.name} -> {[s.name for s in getattr(cmd, 'commands', [])]}")
+
+    try:
+        synced = await client.tree.sync()
+        print(f"Синхронизировано команд: {len(synced)}")
+        for cmd in client.tree.get_commands():
+            print(f"  {cmd.name} -> {[s.name for s in getattr(cmd, 'commands', [])]}")
+    except discord.HTTPException:
+        logging.exception("Глобальный синк не удался — бот работает, команды на стороне Discord не обновлены")
 client.setup_hook = _setup_hook
 
 #####################################################################
