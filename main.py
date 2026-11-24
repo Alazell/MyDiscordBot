@@ -9,23 +9,18 @@ from discord.ext import tasks, commands
 import logging
 load_dotenv()
 
-if not os.environ['DISCORD_TOKEN']:
-    raise RuntimeError(
-        "DISCORD_TOKEN is not configured."
-    )
-
+if not os.environ['DISCORD_TOKEN']: raise RuntimeError("DISCORD_TOKEN is not configured.")
 client = commands.Bot(intents=discord.Intents.all(),
                       activity=discord.CustomActivity(name="*Сладко прилизывается, подстраиваясь над вашими метаданными*"),
                       command_prefix=commands.when_mentioned_or('$'))
-
 TEST_GUILD_ID = 1083623196164632616
 TEST_GUILD = discord.Object(id=TEST_GUILD_ID)
 #####################################################################
 @commands.hybrid_group(name="debug", description="Отладочные команды проекта")
-async def DebugGroup(ctx: commands.Context) -> None:
-    pass
+async def DebugGroup(ctx: commands.Context) -> None: pass
 DebugGroup.add_command(send_verification_embed)
-#####################################################################
+
+
 @commands.hybrid_command(name="ping", description="Проверить задержку бота")
 async def ping(ctx: commands.Context):
     start_time = time.monotonic()
