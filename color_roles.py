@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime
 import io
 import logging
@@ -166,6 +167,7 @@ def resolve_anchor(guild: discord.Guild) -> discord.Role | None:
 
 async def sync_guild(guild: discord.Guild) -> None:
     now = discord.utils.utcnow()
+    cached_before = {role_id for role_id, _ in await _cached(guild.id)}
     actual: dict[int, discord.Role] = {}
     for role in guild.roles:
         rgb = rgb_from_name(role.name)
@@ -180,7 +182,7 @@ async def sync_guild(guild: discord.Guild) -> None:
         actual[role.id] = role
         await _remember(role, rgb)
 
-    stale = [role_id for role_id, _ in await _cached(guild.id) if role_id not in actual]
+    stale = [role_id for role_id in cached_before if role_id not in actual]
     await _forget(stale)
 
 
@@ -232,13 +234,22 @@ async def create_color_role(guild: discord.Guild, rgb: int, anchor: discord.Role
     return role
 
 
+_member_locks: dict[tuple[int, int], asyncio.Lock] = {}
+
+
+def _member_lock(member: discord.Member) -> asyncio.Lock:
+    return _member_locks.setdefault((member.guild.id, member.id), asyncio.Lock())
+
+
 async def give_color(member: discord.Member, role: discord.Role) -> None:
-    old = [r for r in member.roles if r.id != role.id and rgb_from_name(r.name) is not None]
-    if old:
-        await member.remove_roles(*old, reason="Role Creator: смена цвета")
-    if role not in member.roles:
-        await member.add_roles(role, reason="Role Creator: выбор цвета")
-    await _delete_if_empty(old, member.id)
+    async with _member_lock(member):
+        member = await member.guild.fetch_member(member.id)
+        old = [r for r in member.roles if r.id != role.id and rgb_from_name(r.name) is not None]
+        if old:
+            await member.remove_roles(*old, reason="Role Creator: смена цвета")
+        if role not in member.roles:
+            await member.add_roles(role, reason="Role Creator: выбор цвета")
+        await _delete_if_empty(old, member.id)
 
 
 async def _delete_if_empty(roles: list[discord.Role], left_member_id: int) -> None:
@@ -292,7 +303,7 @@ class ColorChoiceView(discord.ui.View):
                 await self._finish(interaction, "Эта роль уже исчезла. Вызови команду ещё раз.")
                 return
             try:
-                await give_color(self.author, fresh)
+                await give_color(interaction.user, fresh)
             except discord.HTTPException as error:
                 await self._finish(interaction, f"Не получилось выдать роль: {error}")
                 return
@@ -302,8 +313,8 @@ class ColorChoiceView(discord.ui.View):
     async def _create_own(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
         try:
-            role = await create_color_role(self.author.guild, self.target, self.anchor)
-            await give_color(self.author, role)
+            role = await create_color_role(interaction.guild, self.target, self.anchor)
+            await give_color(interaction.user, role)
         except (discord.HTTPException, RuntimeError) as error:
             await self._finish(interaction, f"Не получилось создать роль: {error}")
             return

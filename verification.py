@@ -544,6 +544,14 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
             logging.getLogger(__name__).warning(
                 "Не удалось удалить канал заявки %s: %s", channel.id, error
             )
+            try:
+                await interaction.followup.send(
+                    f"Итог записан, но канал удалить не получилось: {error}. Удали его вручную, "
+                    "иначе он будет мешать новой заявке.",
+                    ephemeral=True,
+                )
+            except discord.HTTPException:
+                pass
 class ApplicationReviewView(discord.ui.View):
     def __init__(self, *, question_disabled: bool = False):
         super().__init__(timeout=None)

@@ -23,7 +23,7 @@ def _main_chat(guild: discord.Guild) -> discord.abc.Messageable | None:
     if not raw_id:
         return None
     try:
-        channel = guild.get_channel(int(raw_id))
+        channel = guild.get_channel_or_thread(int(raw_id))
     except ValueError:
         logger.error("MAIN_CHAT_CHANNEL_ID содержит неверный ID: %r", raw_id)
         return None
