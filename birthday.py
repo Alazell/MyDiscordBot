@@ -3,7 +3,15 @@ import discord
 import datetime
 import os
 import logging
+import random
 from discord.ext import commands
+
+BIRTHDAY_TEXTS = (
+    "{birthday} Сегодня день рождения у {mention}! Поздравляем, пусть этот год будет самым тёплым и пушистым {CumHeart}",
+    "{birthday} {mention}, с днём рождения! Обнимашки и поздравления от всего сервера! {LovelyHugs}",
+    "{birthday} Внимание, именинник: {mention}! Заваливаем поздравлениями 🎁",
+)
+BIRTHDAY_EMOJIS = {"birthday": "🎂", "CumHeart": "💜", "LovelyHugs": "🫂"}
 
 async def init_db() -> int:
     async with aiosqlite.connect("birthdays.db") as db:
@@ -160,7 +168,9 @@ async def sync_birthday_roles(client: discord.Client) -> None:
             if should_have_role and not has_role:
                 await member.add_roles(role, reason="День рождения")
                 if main_chat is not None:
-                    try: await main_chat.send(f"🎉 Сегодня день рождения у {member.mention}! Поздравляем 💜", allowed_mentions=discord.AllowedMentions(users=[member]))
+                    emojis = {name: str(discord.utils.get(guild.emojis, name=name) or fallback) for name, fallback in BIRTHDAY_EMOJIS.items()}
+                    text = random.choice(BIRTHDAY_TEXTS).format(mention=member.mention, **emojis)
+                    try: await main_chat.send(text, allowed_mentions=discord.AllowedMentions(users=[member]))
                     except discord.HTTPException: logger.exception("Не удалось поздравить user_id=%s", user_id)
             elif not should_have_role and has_role: await member.remove_roles(role, reason="День рождения закончился")
         except discord.NotFound: logger.info("Объект Discord не найден для user_id=%s", user_id)

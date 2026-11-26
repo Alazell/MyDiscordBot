@@ -11,7 +11,15 @@ from discord.ext import commands
 import aiosqlite
 import datetime
 import logging
+import random
 load_dotenv()
+
+VERIFIED_TEXTS = (
+    "{Hello} Встречайте {mention}! Верификация пройдена, добро пожаловать в клуб {CumHeart}",
+    "{Hello} {mention} теперь с нами! Рады его поприветствовать {CuteHugs}",
+    "{Hello} У нас новенький: {mention}!",
+)
+VERIFIED_EMOJIS = {"Hello": "👋", "CumHeart": "💜", "CuteHugs": "🫂"}
 
 
 ANSWER_STORE = Path(__file__).with_name(".verification_answers.json")
@@ -532,9 +540,10 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
         if self.status == "ПРИНЯТО ✅" and applicant is not None and raw_chat_id.isdigit():
             main_chat = channel.guild.get_channel_or_thread(int(raw_chat_id))
             if main_chat is not None:
+                emojis = {name: str(discord.utils.get(channel.guild.emojis, name=name) or fallback) for name, fallback in VERIFIED_EMOJIS.items()}
                 try:
                     await main_chat.send(
-                        f"🌸 Встречайте {applicant.mention}! Верификация пройдена, добро пожаловать в клуб 💜",
+                        random.choice(VERIFIED_TEXTS).format(mention=applicant.mention, **emojis),
                         allowed_mentions=discord.AllowedMentions(users=[applicant]),
                     )
                 except discord.HTTPException:
