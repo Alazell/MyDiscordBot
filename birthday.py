@@ -4,6 +4,7 @@ import datetime
 import os
 import logging
 from discord.ext import commands
+import notifications
 
 async def init_db() -> int:
     async with aiosqlite.connect("birthdays.db") as db:
@@ -151,7 +152,9 @@ async def sync_birthday_roles(client: discord.Client) -> None:
             member = await guild.fetch_member(user_id)
             has_role = role in member.roles
 
-            if should_have_role and not has_role: await member.add_roles(role, reason="День рождения")
+            if should_have_role and not has_role:
+                await member.add_roles(role, reason="День рождения")
+                await notifications.announce_birthday(member)
             elif not should_have_role and has_role: await member.remove_roles(role, reason="День рождения закончился")
         except discord.NotFound: logger.info("Объект Discord не найден для user_id=%s", user_id)
         except discord.HTTPException: logger.exception("Не удалось обновить роль для user_id=%s", user_id)

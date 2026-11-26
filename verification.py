@@ -10,6 +10,8 @@ from discord import app_commands
 from discord.ext import commands
 import aiosqlite
 import datetime
+import logging
+import notifications
 load_dotenv()
 
 
@@ -370,6 +372,49 @@ class VerificationView(discord.ui.View):
         await interaction.response.send_modal(
             VerificationModal()
         )
+class VerificationLogView(discord.ui.LayoutView):
+    def __init__(
+        self,
+        *,
+        status: str,
+        accepted: bool,
+        moderator: discord.abc.User,
+        applicant: discord.Member | None,
+        applicant_id: int,
+        reason: str,
+        transcript_name: str,
+    ) -> None:
+        super().__init__(timeout=None)
+
+        applicant_text = applicant.mention if applicant else f"<@{applicant_id}>"
+        closed_at = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        header = discord.ui.TextDisplay(
+            f"## Верификация закрыта\n"
+            f"**Статус:** {status}\n"
+            f"**Автор заявки:** {applicant_text} (`{applicant_id}`)\n"
+            f"**Модератор:** {moderator.mention}\n"
+            f"-# <t:{closed_at}:f>"
+        )
+        if applicant is not None:
+            top = discord.ui.Section(
+                header,
+                accessory=discord.ui.Thumbnail(media=applicant.display_avatar.url),
+            )
+        else:
+            top = header
+
+        container = discord.ui.Container(
+            top,
+            discord.ui.Separator(),
+            discord.ui.TextDisplay(f"**Причина:**\n{reason or '*не указана*'}"),
+            discord.ui.Separator(),
+            discord.ui.TextDisplay("-# Транскрипт заявки:"),
+            discord.ui.File(media=f"attachment://{transcript_name}"),
+            accent_colour=discord.Colour.green() if accepted else discord.Colour.red(),
+        )
+        self.add_item(container)
+
+
 class ClosureReasonModal(discord.ui.Modal, title="Причина"):
     reason = discord.ui.TextInput(
         label="Причина",
@@ -457,46 +502,48 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
             return
 
         reason = self.reason.value.strip()
-        closure_embed = discord.Embed(
-            title="Верификация закрыта",
-            color=discord.Color(0),
-        )
-        closure_embed.add_field(
-            name="Модератор:",
-            value=interaction.user.mention,
-            inline=False,
-        )
-        closure_embed.add_field(
-            name="Автор заявки:",
-            value=applicant.mention if applicant else f"<@{applicant_id}>",
-            inline=False,
-        )
-        closure_embed.add_field(
-            name="Статус заявки",
-            value=f"{self.status}\n*Причина:*\n{reason}",
-            inline=False,
+        transcript_name = f"transcript-{applicant_id}.html"
+        log_view = VerificationLogView(
+            status=self.status,
+            accepted=self.status == "ПРИНЯТО ✅",
+            moderator=interaction.user,
+            applicant=applicant,
+            applicant_id=applicant_id,
+            reason=reason,
+            transcript_name=transcript_name,
         )
 
         try:
             await log_channel.send(
-                embed=closure_embed,
+                view=log_view,
                 file=discord.File(
                     io.BytesIO(transcript.encode("utf-8")),
-                    filename=f"transcript-{applicant_id}.html",
+                    filename=transcript_name,
                 ),
+                allowed_mentions=discord.AllowedMentions.none(),
             )
-            await channel.delete(reason=f"Заявка закрыта: {self.status}")
         except (discord.Forbidden, discord.HTTPException) as error:
             await interaction.followup.send(
-                f"Не удалось отправить итог или удалить канал заявки: {error}",
+                f"Не удалось отправить итог в журнал: {error}",
                 ephemeral=True,
             )
             return
+
+        if self.status == "ПРИНЯТО ✅" and applicant is not None:
+            await notifications.announce_verified(applicant)
 
         await interaction.followup.send(
             f"Заявка обработана: {self.status}. Транскрипт отправлен в журнал.",
             ephemeral=True,
         )
+        try:
+            await channel.delete(reason=f"Заявка закрыта: {self.status}")
+        except discord.NotFound:
+            pass
+        except (discord.Forbidden, discord.HTTPException) as error:
+            logging.getLogger(__name__).warning(
+                "Не удалось удалить канал заявки %s: %s", channel.id, error
+            )
 class ApplicationReviewView(discord.ui.View):
     def __init__(self, *, question_disabled: bool = False):
         super().__init__(timeout=None)
