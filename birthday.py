@@ -4,7 +4,6 @@ import datetime
 import os
 import logging
 from discord.ext import commands
-import notifications
 
 async def init_db() -> int:
     async with aiosqlite.connect("birthdays.db") as db:
@@ -132,6 +131,12 @@ async def sync_birthday_roles(client: discord.Client) -> None:
         async with db.execute("SELECT user_id, day, month FROM birthdays") as cursor: rows = await cursor.fetchall()
     today = datetime.date.today()
 
+    main_chat = None
+    raw_chat_id = os.getenv("MAIN_CHAT_CHANNEL_ID", "").strip()
+    if raw_chat_id.isdigit():
+        main_chat = guild.get_channel_or_thread(int(raw_chat_id))
+        if main_chat is None: logger.warning("Основной чат %s не найден, поздравления не отправятся", raw_chat_id)
+
     for user_id, raw_day, raw_month in rows:
         try:
             user_id = int(user_id)
@@ -154,7 +159,9 @@ async def sync_birthday_roles(client: discord.Client) -> None:
 
             if should_have_role and not has_role:
                 await member.add_roles(role, reason="День рождения")
-                await notifications.announce_birthday(member)
+                if main_chat is not None:
+                    try: await main_chat.send(f"🎉 Сегодня день рождения у {member.mention}! Поздравляем 💜", allowed_mentions=discord.AllowedMentions(users=[member]))
+                    except discord.HTTPException: logger.exception("Не удалось поздравить user_id=%s", user_id)
             elif not should_have_role and has_role: await member.remove_roles(role, reason="День рождения закончился")
         except discord.NotFound: logger.info("Объект Discord не найден для user_id=%s", user_id)
         except discord.HTTPException: logger.exception("Не удалось обновить роль для user_id=%s", user_id)

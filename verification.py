@@ -11,7 +11,6 @@ from discord.ext import commands
 import aiosqlite
 import datetime
 import logging
-import notifications
 load_dotenv()
 
 
@@ -529,8 +528,17 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
             )
             return
 
-        if self.status == "ПРИНЯТО ✅" and applicant is not None:
-            await notifications.announce_verified(applicant)
+        raw_chat_id = os.getenv("MAIN_CHAT_CHANNEL_ID", "").strip()
+        if self.status == "ПРИНЯТО ✅" and applicant is not None and raw_chat_id.isdigit():
+            main_chat = channel.guild.get_channel_or_thread(int(raw_chat_id))
+            if main_chat is not None:
+                try:
+                    await main_chat.send(
+                        f"🌸 Встречайте {applicant.mention}! Верификация пройдена, добро пожаловать в клуб 💜",
+                        allowed_mentions=discord.AllowedMentions(users=[applicant]),
+                    )
+                except discord.HTTPException:
+                    logging.getLogger(__name__).exception("Не удалось поприветствовать %s", applicant.id)
 
         await interaction.followup.send(
             f"Заявка обработана: {self.status}. Транскрипт отправлен в журнал.",
