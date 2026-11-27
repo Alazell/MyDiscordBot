@@ -392,7 +392,15 @@ async def color_command(ctx: commands.Context) -> None:
                     button = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary)
                     button.callback = self._jump(step)
                     self.add_item(button)
+            back = discord.ui.Button(label="Назад", style=discord.ButtonStyle.secondary, row=1)
+            back.callback = self.on_back
+            self.add_item(back)
             await interaction.response.edit_message(embed=self._list_embed(), attachments=[], view=self)
+
+        async def on_back(self, interaction):
+            await interaction.response.defer()
+            member = await interaction.guild.fetch_member(self.member.id)
+            await self.show_panel(own_color(member))
 
         async def show_warning(self, member, target, anchor, options):
             self.target, self.anchor = target, anchor
@@ -400,11 +408,11 @@ async def color_command(ctx: commands.Context) -> None:
             for diffs, role in options:
                 button = discord.ui.Button(
                     label=f"Взять #{role.colour.value:06X} (близость {closeness(diffs)}%)",
-                    style=discord.ButtonStyle.secondary)
+                    style=discord.ButtonStyle.primary)
                 button.callback = self._apply(role)
                 self.add_item(button)
             create = discord.ui.Button(label=f"Создать свою #{target:06X}",
-                                       style=discord.ButtonStyle.primary)
+                                       style=discord.ButtonStyle.secondary)
             create.callback = self._apply(None)
             self.add_item(create)
             embed = discord.Embed(
@@ -466,7 +474,7 @@ async def color_command(ctx: commands.Context) -> None:
             self.panel = panel
 
         async def on_submit(self, interaction):
-            await interaction.response.defer(ephemeral=True)
+            await interaction.response.defer()
             try:
                 await self._handle(interaction)
             except Exception:
@@ -474,11 +482,6 @@ async def color_command(ctx: commands.Context) -> None:
                 await self.panel.show_panel(own_color(interaction.user),
                                             headline="Что-то пошло не так. Попробуй ещё раз.",
                                             colour=discord.Colour.red())
-            finally:
-                try:
-                    await interaction.delete_original_response()
-                except discord.HTTPException:
-                    pass
 
         async def _handle(self, interaction):
             panel = self.panel

@@ -536,9 +536,9 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
             )
             return
 
-        raw_chat_id = os.getenv("MAIN_CHAT_CHANNEL_ID", "").strip()
-        if self.status == "ПРИНЯТО ✅" and applicant is not None and raw_chat_id.isdigit():
-            main_chat = channel.guild.get_channel_or_thread(int(raw_chat_id))
+        try: main_chat = channel.guild.get_channel_or_thread(int(os.getenv("MAIN_CHAT_CHANNEL_ID", "").strip()))
+        except (TypeError, ValueError): main_chat = None
+        if self.status == "ПРИНЯТО ✅" and applicant is not None:
             if main_chat is not None:
                 emojis = {name: str(discord.utils.get(channel.guild.emojis, name=name) or fallback) for name, fallback in VERIFIED_EMOJIS.items()}
                 try:

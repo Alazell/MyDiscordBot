@@ -140,7 +140,9 @@ async def sync_birthday_roles(client: discord.Client) -> None:
     today = datetime.date.today()
 
     try:  main_chat = guild.get_channel_or_thread(int(os.getenv("MAIN_CHAT_CHANNEL_ID", "").strip()))
-    except Exception: logger.error(msg="Идентификатор канала main ложный или отсутствует")
+    except (TypeError, ValueError):
+        main_chat = None
+        logger.error("Идентификатор канала main ложный или отсутствует")
 
     for user_id, raw_day, raw_month in rows:
         try:
