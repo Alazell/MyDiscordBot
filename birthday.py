@@ -164,10 +164,14 @@ async def sync_birthday_roles(client: discord.Client) -> None:
         known_ids.add(user_id)
         if today == birthday_this_year: birthday_ids.add(user_id)
 
-    for member in list(role.members):
-        if member.id in known_ids and member.id not in birthday_ids:
-            try: await member.remove_roles(role, reason="День рождения закончился")
-            except discord.HTTPException: logger.exception("Не удалось снять роль у user_id=%s", member.id)
+    for user_id in known_ids - birthday_ids:
+        member = guild.get_member(user_id)
+        if member is not None and role not in member.roles: continue
+        try:
+            if member is None: member = await guild.fetch_member(user_id)
+            if role in member.roles: await member.remove_roles(role, reason="День рождения закончился")
+        except discord.NotFound: continue
+        except discord.HTTPException: logger.exception("Не удалось снять роль у user_id=%s", user_id)
 
     for user_id in birthday_ids:
         try:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import Counter
 import datetime
 import io
 import logging
@@ -209,10 +210,10 @@ async def give_color(member: discord.Member, role: discord.Role) -> None:
     async with _member_locks.setdefault((member.guild.id, member.id), asyncio.Lock()):
         member = await member.guild.fetch_member(member.id)
         old = [r for r in member.roles if r.id != role.id and HEX_NAME.match(r.name)]
-        if old:
-            await member.remove_roles(*old, reason="Role Creator: смена цвета")
         if role not in member.roles:
             await member.add_roles(role, reason="Role Creator: выбор цвета")
+        if old:
+            await member.remove_roles(*old, reason="Role Creator: смена цвета")
         await drop_empty_roles(old, member.id)
 
 
@@ -368,9 +369,11 @@ class ColorPanelView(discord.ui.View):
                 attachments=[], view=self)
             return
         roles.sort(key=hue_key)
+        colour_ids = {r.id for r in roles}
+        counts = Counter(r.id for m in interaction.guild.members for r in m.roles if r.id in colour_ids)
         pages, lines, size = [], [], 0
         for role in roles:
-            line = f"{len(role.members)} 👤     {role.mention}"
+            line = f"{counts[role.id]} 👤     {role.mention}"
             if lines and size + len(line) + 1 > 4000:
                 pages.append("\n".join(lines))
                 lines, size = [], 0
