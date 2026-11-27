@@ -210,10 +210,19 @@ async def give_color(member: discord.Member, role: discord.Role) -> None:
     async with _member_locks.setdefault((member.guild.id, member.id), asyncio.Lock()):
         member = await member.guild.fetch_member(member.id)
         old = [r for r in member.roles if r.id != role.id and HEX_NAME.match(r.name)]
-        if role not in member.roles:
+        had_role = role in member.roles
+        if not had_role:
             await member.add_roles(role, reason="Role Creator: выбор цвета")
         if old:
-            await member.remove_roles(*old, reason="Role Creator: смена цвета")
+            try:
+                await member.remove_roles(*old, reason="Role Creator: смена цвета")
+            except discord.HTTPException:
+                if not had_role:
+                    try:
+                        await member.remove_roles(role, reason="Role Creator: откат смены цвета")
+                    except discord.HTTPException:
+                        logger.exception("Не удалось откатить выдачу цвета %s", role.id)
+                raise
         await drop_empty_roles(old, member.id)
 
 
