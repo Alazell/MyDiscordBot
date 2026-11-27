@@ -6,7 +6,6 @@ from html import escape
 from pathlib import Path
 import os
 import discord
-from discord import app_commands
 from discord.ext import commands
 import aiosqlite
 import datetime
@@ -344,13 +343,13 @@ class VerificationModal(discord.ui.Modal, title="Заявка на верифи�
             value=answers["attitude"] or "Не указано")
         admin_embed.add_field(
             name="Указанный возраст",
-            value=(f"{answers['age']}\n"), inline=True)
+            value=answers["age"], inline=True)
         admin_embed.add_field(
             name="Метод присоединения",
-            value=(f"{source_names[source_key]}\n"))
+            value=source_names.get(source_key, "Не указано"))
         admin_embed.add_field(
             name="Ролевое мнение",
-            value=(f"{answers['role_mind']}\n"),
+            value=answers["role_mind"] or "Не указано",
             inline=False)
 
         await application_channel.send(
@@ -490,7 +489,7 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
                     verified_role,
                     reason="Заявка на верификацию принята",
                 )
-            except discord.Forbidden:
+            except discord.HTTPException:
                 await interaction.followup.send(
                     "Бот не может изменить роли автора заявки. "
                     "Проверьте иерархию ролей.",
@@ -666,6 +665,13 @@ class ApplicationReviewView(discord.ui.View):
             "Переписка открыта для автора заявки и модераторов.",
             ephemeral=True,
         )
+        try:
+            await channel.send(
+                f"{applicant.mention}, у модерации есть к тебе пара вопросов, можешь писать сюда 💬",
+                allowed_mentions=discord.AllowedMentions(users=[applicant]),
+            )
+        except discord.HTTPException:
+            pass
 
 # Команда отладки для отправки embed-сообщения верификации
 @commands.hybrid_command(name="verification_embed", description="Отправить embed для подачи заявки на верификацию")

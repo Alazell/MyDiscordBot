@@ -68,4 +68,5 @@ async def emote(ctx: commands.Context, emote: str = "", *, text: str = ""):
                                            description=f"{template.format(user=ctx.author.mention, text='<text>')}",
                                            color=discord.Colour.from_str('#0071ff')), ephemeral=ephemeral)
     else:
-        await ctx.send(template.format(user=ctx.author.mention, text=text))
+        await ctx.send(template.format(user=ctx.author.mention, text=text),
+                       allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True))
