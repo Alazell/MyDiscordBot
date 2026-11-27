@@ -139,11 +139,8 @@ async def sync_birthday_roles(client: discord.Client) -> None:
         async with db.execute("SELECT user_id, day, month FROM birthdays") as cursor: rows = await cursor.fetchall()
     today = datetime.date.today()
 
-    main_chat = None
-    raw_chat_id = os.getenv("MAIN_CHAT_CHANNEL_ID", "").strip()
-    if raw_chat_id.isdigit():
-        main_chat = guild.get_channel_or_thread(int(raw_chat_id))
-        if main_chat is None: logger.warning("Основной чат %s не найден, поздравления не отправятся", raw_chat_id)
+    try:  main_chat = guild.get_channel_or_thread(int(os.getenv("MAIN_CHAT_CHANNEL_ID", "").strip()))
+    except Exception: logger.error(msg="Идентификатор канала main ложный или отсутствует")
 
     for user_id, raw_day, raw_month in rows:
         try:
