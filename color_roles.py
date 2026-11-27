@@ -332,20 +332,21 @@ class ColorPanelView(discord.ui.View):
 
     async def on_drop(self, interaction):
         await interaction.response.defer()
-        member = await interaction.guild.fetch_member(self.member.id)
-        old = [r for r in member.roles if HEX_NAME.match(r.name)]
-        if not old:
-            await self.show_panel(None, headline="У тебя и не было цветовой роли.",
-                                  colour=discord.Colour.red())
-            return
-        try:
-            await member.remove_roles(*old, reason="Role Creator: снятие цвета")
-        except discord.HTTPException as error:
-            await self.show_panel(own_color(member),
-                                  headline=f"Не получилось снять роль: {error}",
-                                  colour=discord.Colour.red())
-            return
-        await drop_empty_roles(old, member.id)
+        async with _member_locks.setdefault((interaction.guild.id, self.member.id), asyncio.Lock()):
+            member = await interaction.guild.fetch_member(self.member.id)
+            old = [r for r in member.roles if HEX_NAME.match(r.name)]
+            if not old:
+                await self.show_panel(None, headline="У тебя и не было цветовой роли.",
+                                      colour=discord.Colour.red())
+                return
+            try:
+                await member.remove_roles(*old, reason="Role Creator: снятие цвета")
+            except discord.HTTPException as error:
+                await self.show_panel(own_color(member),
+                                      headline=f"Не получилось снять роль: {error}",
+                                      colour=discord.Colour.red())
+                return
+            await drop_empty_roles(old, member.id)
         await self.show_panel(None, headline="Готово! Цвет снят.",
                               colour=discord.Colour.green())
 
