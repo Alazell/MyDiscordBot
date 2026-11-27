@@ -537,9 +537,9 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
             return
 
         try: main_chat = channel.guild.get_channel_or_thread(int(os.getenv("MAIN_CHAT_CHANNEL_ID", "").strip()))
-        except (TypeError, ValueError): main_chat = None
+        except ValueError: main_chat = None
         if self.status == "ПРИНЯТО ✅" and applicant is not None:
-            if main_chat is not None:
+            if isinstance(main_chat, discord.abc.Messageable):
                 emojis = {name: str(discord.utils.get(channel.guild.emojis, name=name) or fallback) for name, fallback in VERIFIED_EMOJIS.items()}
                 try:
                     await main_chat.send(
@@ -549,10 +549,13 @@ class ClosureReasonModal(discord.ui.Modal, title="Причина"):
                 except discord.HTTPException:
                     logging.getLogger(__name__).exception("Не удалось поприветствовать %s", applicant.id)
 
-        await interaction.followup.send(
-            f"Заявка обработана: {self.status}. Транскрипт отправлен в журнал.",
-            ephemeral=True,
-        )
+        try:
+            await interaction.followup.send(
+                f"Заявка обработана: {self.status}. Транскрипт отправлен в журнал.",
+                ephemeral=True,
+            )
+        except discord.HTTPException:
+            pass
         try:
             await channel.delete(reason=f"Заявка закрыта: {self.status}")
         except discord.NotFound:

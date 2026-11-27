@@ -172,6 +172,8 @@ async def sync_all(client: discord.Client) -> None:
 
 
 async def create_color_role(guild: discord.Guild, rgb: int, anchor: discord.Role) -> discord.Role:
+    if len(guild.roles) >= MAX_ROLES:
+        raise RuntimeError("На сервере почти не осталось места для новых ролей")
     role = await guild.create_role(
         name=f"!       #{rgb:06X}",
         colour=discord.Colour(rgb),

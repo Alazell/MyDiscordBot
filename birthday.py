@@ -140,7 +140,7 @@ async def sync_birthday_roles(client: discord.Client) -> None:
     today = datetime.date.today()
 
     try:  main_chat = guild.get_channel_or_thread(int(os.getenv("MAIN_CHAT_CHANNEL_ID", "").strip()))
-    except (TypeError, ValueError):
+    except ValueError:
         main_chat = None
         logger.error("Идентификатор канала main ложный или отсутствует")
 
@@ -166,7 +166,7 @@ async def sync_birthday_roles(client: discord.Client) -> None:
 
             if should_have_role and not has_role:
                 await member.add_roles(role, reason="День рождения")
-                if main_chat is not None:
+                if isinstance(main_chat, discord.abc.Messageable):
                     emojis = {name: str(discord.utils.get(guild.emojis, name=name) or fallback) for name, fallback in BIRTHDAY_EMOJIS.items()}
                     text = random.choice(BIRTHDAY_TEXTS).format(mention=member.mention, **emojis)
                     try: await main_chat.send(text, allowed_mentions=discord.AllowedMentions(users=[member]))
