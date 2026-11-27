@@ -220,6 +220,7 @@ async def give_color(member: discord.Member, role: discord.Role) -> None:
                 if not had_role:
                     try:
                         await member.remove_roles(role, reason="Role Creator: откат смены цвета")
+                        await drop_empty_roles([role], member.id)
                     except discord.HTTPException:
                         logger.exception("Не удалось откатить выдачу цвета %s", role.id)
                 raise
