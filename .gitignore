@@ -3,5 +3,3 @@ __pycache__
 *.db
 .verification_answers.json
 .verification_answers.tmp
-__pycache__/birthday.cpython-313.pyc
-__pycache__/verification.cpython-313.pyc

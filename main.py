@@ -2,6 +2,7 @@ import os
 import time
 from verification import ApplicationReviewView, VerificationView, send_verification_embed
 import birthday
+import color_roles
 from jun_commands import emote
 from dotenv import load_dotenv
 import discord
@@ -9,7 +10,7 @@ from discord.ext import tasks, commands
 import logging
 load_dotenv()
 
-if not os.environ['DISCORD_TOKEN']: raise RuntimeError("DISCORD_TOKEN is not configured.")
+if not os.getenv('DISCORD_TOKEN'): raise RuntimeError("DISCORD_TOKEN is not configured.")
 client = commands.Bot(intents=discord.Intents.all(),
                       activity=discord.CustomActivity(name="*Сладко прилизывается, подстраиваясь над вашими метаданными*"),
                       command_prefix=commands.when_mentioned_or('$'),
@@ -72,14 +73,18 @@ async def help_command(ctx: commands.Context) -> None:
     if current: values.append(current)
     for value in values: embed.add_field(name="\u200b", value=value, inline=False)
     try: await ctx.send(embed=embed)
-    except discord.Forbidden: ctx.send(content='У приложения нету прав отправить это сообщение. вы не дали право на вложения?')
+    except discord.Forbidden: await ctx.send(content='У приложения нету прав отправить это сообщение. вы не дали право на вложения?')
     except Exception: logging.exception("Не удалось отправить embed help")
 
 #####################################################################
 @tasks.loop(hours=1)
 async def birthday_role_task() -> None:
     try: await birthday.sync_birthday_roles(client)
-    except Exception as e: import logging; logging.exception(f"Ошибка синхронизации ролей дня рождения: {e}")
+    except Exception: logging.exception("Ошибка синхронизации ролей дня рождения")
+@tasks.loop(hours=1)
+async def color_roles_task() -> None:
+    try: await color_roles.sync_all(client)
+    except Exception: logging.exception("Ошибка синхронизации цветных ролей")
 async def _setup_hook() -> None:
     client.add_view(VerificationView())
     client.add_view(ApplicationReviewView())
@@ -89,6 +94,7 @@ async def _setup_hook() -> None:
     client.add_command(ping)
     client.add_command(birthday.set_birthday)
     client.add_command(help_command)
+    client.add_command(color_roles.color_command)
 
     try:
         synced = await client.tree.sync()
@@ -108,8 +114,15 @@ async def on_ready() -> None:
         count = await birthday.init_db()
         print(f'birthdays.db загружен и имеет {count} пользователей в списке.')
     except Exception as error: print(f'Возникла ошибка при загрузке birthdays.db: {error}')
-    else: 
+
+    else:
         if not birthday_role_task.is_running(): birthday_role_task.start()
+    
+    try: await color_roles.init_db()
+    except Exception as error: print(f'Возникла ошибка при загрузке color_roles.db: {error}')
+    
+    else:
+        if not color_roles_task.is_running(): color_roles_task.start()
     
     print(f"Discord-бот запущен как {client.user}")
 

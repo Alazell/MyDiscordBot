@@ -3,7 +3,15 @@ import discord
 import datetime
 import os
 import logging
+import random
 from discord.ext import commands
+
+BIRTHDAY_TEXTS = (
+    "{birthday} Сегодня день рождения у {mention}! Поздравляем, пусть этот год будет самым тёплым и пушистым {CumHeart}",
+    "{birthday} {mention}, с днём рождения! Обнимашки и поздравления от всего сервера! {LovelyHugs}",
+    "{birthday} Внимание, именинник: {mention}! Заваливаем поздравлениями 🎁",
+)
+BIRTHDAY_EMOJIS = {"birthday": "🎂", "CumHeart": "💜", "LovelyHugs": "🫂"}
 
 async def init_db() -> int:
     async with aiosqlite.connect("birthdays.db") as db:
@@ -131,6 +139,13 @@ async def sync_birthday_roles(client: discord.Client) -> None:
         async with db.execute("SELECT user_id, day, month FROM birthdays") as cursor: rows = await cursor.fetchall()
     today = datetime.date.today()
 
+    try:  main_chat = guild.get_channel_or_thread(int(os.getenv("MAIN_CHAT_CHANNEL_ID", "").strip()))
+    except ValueError:
+        main_chat = None
+        logger.error("Идентификатор канала main ложный или отсутствует")
+
+    birthday_ids: set[int] = set()
+    known_ids: set[int] = set()
     for user_id, raw_day, raw_month in rows:
         try:
             user_id = int(user_id)
@@ -146,12 +161,27 @@ async def sync_birthday_roles(client: discord.Client) -> None:
             try:birthday_this_year = datetime.date(today.year, 2, 29)
             except ValueError: birthday_this_year = datetime.date(today.year, 3, 1)
         else: birthday_this_year = datetime.date(today.year, month, day)
-        should_have_role = today == birthday_this_year
-        try: # Получаем участника через API, а не только из кэша.
-            member = await guild.fetch_member(user_id)
-            has_role = role in member.roles
+        known_ids.add(user_id)
+        if today == birthday_this_year: birthday_ids.add(user_id)
 
-            if should_have_role and not has_role: await member.add_roles(role, reason="День рождения")
-            elif not should_have_role and has_role: await member.remove_roles(role, reason="День рождения закончился")
-        except discord.NotFound: logger.info("Объект Discord не найден для user_id=%s", user_id)
-        except discord.HTTPException: logger.exception("Не удалось обновить роль для user_id=%s", user_id)
+    for user_id in known_ids - birthday_ids:
+        member = guild.get_member(user_id)
+        if member is not None and role not in member.roles: continue
+        try:
+            if member is None: member = await guild.fetch_member(user_id)
+            if role in member.roles: await member.remove_roles(role, reason="День рождения закончился")
+        except discord.NotFound: continue
+        except discord.HTTPException: logger.exception("Не удалось снять роль у user_id=%s", user_id)
+
+    for user_id in birthday_ids:
+        try:
+            member = guild.get_member(user_id) or await guild.fetch_member(user_id)
+            if role in member.roles: continue
+            await member.add_roles(role, reason="День рождения")
+        except discord.NotFound: logger.info("Объект Discord не найден для user_id=%s", user_id); continue
+        except discord.HTTPException: logger.exception("Не удалось обновить роль для user_id=%s", user_id); continue
+        if isinstance(main_chat, discord.abc.Messageable):
+            emojis = {name: str(discord.utils.get(guild.emojis, name=name) or fallback) for name, fallback in BIRTHDAY_EMOJIS.items()}
+            text = random.choice(BIRTHDAY_TEXTS).format(mention=member.mention, **emojis)
+            try: await main_chat.send(text, allowed_mentions=discord.AllowedMentions(users=[member]))
+            except discord.HTTPException: logger.exception("Не удалось поздравить user_id=%s", user_id)
